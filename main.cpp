@@ -15,28 +15,35 @@
 #define SS_NEOKEY_ADDR 0x30
 
 #define SS_ROTARY_LED_PIN 6
-#define SS_ROTARY_ENC_PIN 24
+#define SS_ROTARY_BTN_PIN 24
 #define SS_ROTARY_ADDR 0x36
 
 #define SS_ATTINY_ADDR 0x49
 #define SS_ATTINY_LED_PIN 10
+#define SS_ATTINY_BTN_PIN 15
+#define SS_ATTINY_SLD_PIN 16
 
 bool display = true;
 bool isInput = display;
 
-bool neokeyInit = false;
 Adafruit_NeoKey_1x4 neokey;
+bool neokeyInit = false;
+bool neokeyToggle = false;
+bool neokeyState[4] = {true, true, true, true};
 NeoKey1x4Callback neokeyCallback(keyEvent evt);
 
-bool rotaryInit = false;
 Adafruit_seesaw rotarySs;
+bool rotaryInit = false;
 seesaw_NeoPixel rotaryRgbLed = seesaw_NeoPixel(1, SS_ROTARY_LED_PIN, NEO_GRB + NEO_KHZ800);
 int32_t rotaryEncPos;
-bool rotaryRgbLedState = false;
+bool rotaryBtnIsPressed = false;
+unsigned long rotaryLastBtnPress = 0;
 
-bool attinyInit = false;
 Adafruit_seesaw attinySs;
-unsigned long lastLedUpdate = 0;
+bool attinyInit = false;
+bool attinyButtonState = false;
+uint16_t attinySliderReading = 0;
+//unsigned long lastLedUpdate = 0;
 
 uint32_t wheel(byte wheelPos)
 {
@@ -97,24 +104,26 @@ void neokeyUpdate()
 
 NeoKey1x4Callback neokeyCallback(keyEvent evt)
 {
-  uint8_t key = evt.bit.NUM;
+    uint8_t key = evt.bit.NUM;
+    uint32_t color = 0x0;
 
-  if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING)
-  {
-    Serial.print("Key press ");
-    Serial.println(key);
-    neokey.pixels.setPixelColor(key, wheel(map(key, 0, neokey.pixels.numPixels(), 0, 255)));
-  }
-  else if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_FALLING)
-  {
-    Serial.print("Key release ");
-    Serial.println(key);
+    if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING)
+    {
+        if (neokeyToggle)
+        {
+            neokeyState[key] = !neokeyState[key];
+        }
 
-    neokey.pixels.setPixelColor(key, 0);
-  }
+        if (!neokeyToggle || neokeyState[key])
+        {
+            color = wheel(map(key, 0, neokey.pixels.numPixels(), 0, 255));
+        }
+    }
 
-  neokey.pixels.show();
-  return 0;
+    neokey.pixels.setPixelColor(key, color);
+    neokey.pixels.show();
+
+    return 0;
 }
 
 void rotarySetup()
@@ -139,11 +148,9 @@ void rotarySetup()
   }
   Serial.println("Found Product 4991");
 
-  rotaryRgbLedState = true;
   rotaryRgbLed.setBrightness(20);
   rotaryRgbLed.show();
-
-  rotarySs.pinMode(SS_ROTARY_ENC_PIN, INPUT_PULLUP);
+  rotarySs.pinMode(SS_ROTARY_BTN_PIN, INPUT_PULLUP);
   rotaryEncPos = rotarySs.getEncoderPosition();
 
   // Serial.println("Turning on interrupts");
@@ -161,26 +168,27 @@ void rotaryUpdate()
     return;
   }
 
-  if (!rotarySs.digitalRead(SS_ROTARY_ENC_PIN))
+  if (!rotarySs.digitalRead(SS_ROTARY_BTN_PIN))
   {
-    rotaryRgbLedState = !rotaryRgbLedState;
-  }
-
-  if (rotaryRgbLedState)
-  {
-    rotaryRgbLed.setPixelColor(0, 0x000000);
-    rotaryRgbLed.show();
+    if (!rotaryBtnIsPressed && millis() - rotaryLastBtnPress > 100)
+    {
+      rotaryBtnIsPressed = true;
+      rotaryLastBtnPress = millis();
+      neokeyToggle = !neokeyToggle;
+    }
   }
   else
   {
-    int32_t newEncPos = rotarySs.getEncoderPosition();
-    if (rotaryEncPos != newEncPos)
-    {
-      Serial.println(newEncPos);
-      rotaryRgbLed.setPixelColor(0, wheel(newEncPos & 0xFF));
-      rotaryRgbLed.show();
-      rotaryEncPos = newEncPos;
-    }
+    rotaryBtnIsPressed = false;
+  }
+
+  int32_t newEncPos = rotarySs.getEncoderPosition();
+  if (rotaryEncPos != newEncPos)
+  {
+    Serial.println(newEncPos);
+    rotaryRgbLed.setPixelColor(0, wheel((newEncPos * 5) & 0xFF)); // 3 rotations for full cycle with 24 step encoder?
+    rotaryRgbLed.show();
+    rotaryEncPos = newEncPos;
   }
 }
 
@@ -195,17 +203,29 @@ void attinySetup()
   Serial.println(F("attiny seesaw started OK!"));
 
   attinySs.pinMode(SS_ATTINY_LED_PIN, OUTPUT);
+  attinySs.pinMode(SS_ATTINY_BTN_PIN, INPUT_PULLDOWN);
+  // analog setup not needed?
 
   attinyInit = true;
 }
 
 void attinyUpdate()
 {
-  if (attinyInit && millis() - lastLedUpdate > 1000)
+  if (!attinyInit)
   {
-    lastLedUpdate = millis();
-    attinySs.digitalWrite(SS_ATTINY_LED_PIN, !attinySs.digitalRead(SS_ATTINY_LED_PIN));
+    return;
   }
+
+  attinyButtonState = attinySs.digitalRead(SS_ATTINY_BTN_PIN);
+  attinySliderReading = attinySs.analogRead(SS_ATTINY_SLD_PIN);
+  
+  attinySs.digitalWrite(SS_ATTINY_LED_PIN, attinyButtonState);
+
+  // if (millis() - lastLedUpdate > 1000)
+  // {
+  //   lastLedUpdate = millis();
+  //   attinySs.digitalWrite(SS_ATTINY_LED_PIN, !attinySs.digitalRead(SS_ATTINY_LED_PIN));
+  // }
 }
 
 void setup()

@@ -9,6 +9,8 @@
 
 WebServer restServer(80);
 extern bool display;
+extern bool attinyButtonState;
+extern uint16_t attinySliderReading;
 
 void wifiSetup()
 {
@@ -131,10 +133,22 @@ void restDisplay()
   restServer.send(200, "text/plain", display ? "on" : "off");
 }
 
+void restButton()
+{
+  restServer.send(200, "text/plain", attinyButtonState ? "on" : "off");
+}
+
+void restSlider()
+{
+  restServer.send(200, "text/plain", String(attinySliderReading));
+}
+
 void restSetup()
 {
     restServer.on("/", restIndex);
     restServer.on("/display", restDisplay);
+    restServer.on("/button", restButton);
+    restServer.on("/slider", restSlider);
     restServer.begin();
 
     Serial.println("REST server running");
