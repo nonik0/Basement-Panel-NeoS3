@@ -98,7 +98,7 @@ void mDnsSetup()
 {
     if (!MDNS.begin("basement-panel-xiao"))
     {
-        Serial.println("Error setting up MDNS responder!");
+        Serial.println("Error setting up mDNS responder!");
 
         return;
     }
@@ -140,7 +140,11 @@ void restButton()
 
 void restSlider()
 {
-  restServer.send(200, "text/plain", String(attinySliderReading));
+  bool sliderNotZero = attinySliderReading != 0;
+
+  String output = "Value: " + String(attinySliderReading) + (sliderNotZero ? "" : " (no slider detected)");
+
+  restServer.send(200, "text/plain", output);
 }
 
 void restSetup()

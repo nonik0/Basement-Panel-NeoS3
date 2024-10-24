@@ -42,8 +42,10 @@ unsigned long rotaryLastBtnPress = 0;
 Adafruit_seesaw attinySs;
 bool attinyInit = false;
 bool attinyButtonState = false;
+unsigned long attinyLastSliderRead = 0;
+unsigned long attinyLastSliderChange = 0;
 uint16_t attinySliderReading = 0;
-//unsigned long lastLedUpdate = 0;
+// unsigned long lastLedUpdate = 0;
 
 uint32_t wheel(byte wheelPos)
 {
@@ -71,7 +73,7 @@ void neokeySetup()
   }
   Serial.println("NeoKey started!");
 
-  neokey.pixels.setBrightness(20);
+  neokey.pixels.setBrightness(40);
 
   for (uint16_t i = 0; i < neokey.pixels.numPixels(); i++)
   {
@@ -94,36 +96,59 @@ void neokeySetup()
   neokeyInit = true;
 }
 
+void neokeyChangeToggle()
+{
+  neokeyToggle = !neokeyToggle;
+
+  for (uint16_t i = 0; i < neokey.pixels.numPixels(); i++)
+  {
+    uint32_t color = neokeyToggle && neokeyState[i]
+                         ? wheel(map(i, 0, neokey.pixels.numPixels(), 0, 255))
+                         : 0x000000;
+
+    neokey.pixels.setPixelColor(i, color);
+  }
+  neokey.pixels.show();
+}
+
 void neokeyUpdate()
 {
-  if (neokeyInit)
+  if (!neokeyInit)
   {
-    neokey.read();
+    return;
   }
+
+  neokey.read();
 }
 
 NeoKey1x4Callback neokeyCallback(keyEvent evt)
 {
-    uint8_t key = evt.bit.NUM;
-    uint32_t color = 0x0;
+  uint8_t key = evt.bit.NUM;
+  uint32_t color = 0x0; // default event to turn LED off
 
-    if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING)
+  // push on case, or toggle state if toggle is enabled
+  if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING)
+  {
+    if (neokeyToggle)
     {
-        if (neokeyToggle)
-        {
-            neokeyState[key] = !neokeyState[key];
-        }
-
-        if (!neokeyToggle || neokeyState[key])
-        {
-            color = wheel(map(key, 0, neokey.pixels.numPixels(), 0, 255));
-        }
+      neokeyState[key] = !neokeyState[key];
     }
+    else
+    {
+      color = wheel(map(key, 0, neokey.pixels.numPixels(), 0, 255));
+    }
+  }
 
-    neokey.pixels.setPixelColor(key, color);
-    neokey.pixels.show();
+  // toggle on case
+  if (neokeyToggle && neokeyState[key])
+  {
+    color = wheel(map(key, 0, neokey.pixels.numPixels(), 0, 255));
+  }
 
-    return 0;
+  neokey.pixels.setPixelColor(key, color);
+  neokey.pixels.show();
+
+  return 0;
 }
 
 void rotarySetup()
@@ -174,7 +199,7 @@ void rotaryUpdate()
     {
       rotaryBtnIsPressed = true;
       rotaryLastBtnPress = millis();
-      neokeyToggle = !neokeyToggle;
+      neokeyChangeToggle();
     }
   }
   else
@@ -216,16 +241,47 @@ void attinyUpdate()
     return;
   }
 
-  attinyButtonState = attinySs.digitalRead(SS_ATTINY_BTN_PIN);
-  attinySliderReading = attinySs.analogRead(SS_ATTINY_SLD_PIN);
-  
-  attinySs.digitalWrite(SS_ATTINY_LED_PIN, attinyButtonState);
+  // check if button state has changed
+  bool newButtonState = attinySs.digitalRead(SS_ATTINY_BTN_PIN);
+  if (newButtonState != attinyButtonState)
+  {
+    attinyButtonState = newButtonState;
+    attinySs.digitalWrite(SS_ATTINY_LED_PIN, attinyButtonState);
+  }
 
-  // if (millis() - lastLedUpdate > 1000)
-  // {
-  //   lastLedUpdate = millis();
-  //   attinySs.digitalWrite(SS_ATTINY_LED_PIN, !attinySs.digitalRead(SS_ATTINY_LED_PIN));
-  // }
+  // read slider, update LED and brightness if changed
+  if (millis() - attinyLastSliderRead > 100)
+  {
+    attinyLastSliderRead = millis();
+    uint16_t newReading = attinySs.analogRead(SS_ATTINY_SLD_PIN);
+
+    int delta = abs(newReading - attinySliderReading);
+    if (delta > 10 && delta < 768) // ignore small and large changes
+    {
+      attinyLastSliderChange = millis();
+      attinySliderReading = newReading;
+
+      neokey.pixels.setBrightness(map(attinySliderReading, 0, 1023, 0, 255));
+      neokey.pixels.show();
+
+      rotaryRgbLed.setBrightness(map(attinySliderReading, 0, 1023, 0, 100));
+      rotaryRgbLed.show();
+
+      attinySs.digitalWrite(SS_ATTINY_LED_PIN, attinySliderReading < 512);
+
+      if (!neokeyToggle)
+      {
+        for (uint16_t i = 0; i < neokey.pixels.numPixels(); i++)
+        {
+          uint32_t color = attinySliderReading > (1023 / neokey.pixels.numPixels()) * i
+                               ? wheel(map(i, 0, neokey.pixels.numPixels(), 0, 255))
+                               : 0x0;
+          neokey.pixels.setPixelColor(i, color);
+          neokey.pixels.show();
+        }
+      }
+    }
+  }
 }
 
 void setup()
