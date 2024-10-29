@@ -11,60 +11,62 @@ WebServer restServer(80);
 extern bool display;
 extern bool attinyButtonState;
 extern uint16_t attinySliderReading;
+extern void ack1Wake();
+extern void ack1Clear();
 
 void wifiSetup()
 {
-    Serial.println("Wifi setting up...");
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(WIFI_SSID, WIFI_PASS);
-    while (WiFi.waitForConnectResult() != WL_CONNECTED)
-    {
-        Serial.println("Connection Failed! Rebooting...");
-        delay(5000);
-        ESP.restart();
-    }
+  Serial.println("Wifi setting up...");
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  while (WiFi.waitForConnectResult() != WL_CONNECTED)
+  {
+    Serial.println("Connection Failed! Rebooting...");
+    delay(5000);
+    ESP.restart();
+  }
 
-    Serial.print("Wifi ready, IP address: ");
-    Serial.println(WiFi.localIP());
+  Serial.print("Wifi ready, IP address: ");
+  Serial.println(WiFi.localIP());
 }
 
 volatile long wifiStatusDelayMs = 0;
 int wifiDisconnects = 0;
 void checkWifiStatus()
 {
-    if (wifiStatusDelayMs < 0)
+  if (wifiStatusDelayMs < 0)
+  {
+    try
     {
-        try
-        {
-            if (WiFi.status() != WL_CONNECTED)
-            {
-                Serial.println("Reconnecting to WiFi...");
-                WiFi.disconnect();
-                WiFi.reconnect();
-                wifiDisconnects++;
-                Serial.println("Reconnected to WiFi");
-            }
-        }
-        catch (const std::exception &e)
-        {
-            Serial.println("Wifi error:" + String(e.what()));
-            wifiStatusDelayMs = 10 * 60 * 1000; // 10 minutes
-        }
-
-        wifiStatusDelayMs = 60 * 1000; // 1 minute
+      if (WiFi.status() != WL_CONNECTED)
+      {
+        Serial.println("Reconnecting to WiFi...");
+        WiFi.disconnect();
+        WiFi.reconnect();
+        wifiDisconnects++;
+        Serial.println("Reconnected to WiFi");
+      }
     }
+    catch (const std::exception &e)
+    {
+      Serial.println("Wifi error:" + String(e.what()));
+      wifiStatusDelayMs = 10 * 60 * 1000; // 10 minutes
+    }
+
+    wifiStatusDelayMs = 60 * 1000; // 1 minute
+  }
 }
 
 void otaSetup()
 {
-    Serial.println("OTA setting up...");
+  Serial.println("OTA setting up...");
 
-    // ArduinoOTA.setPort(3232);
-    ArduinoOTA.setHostname("Basement-Panel-Xiao");
+  // ArduinoOTA.setPort(3232);
+  ArduinoOTA.setHostname("Basement-Panel-Xiao");
 
-    ArduinoOTA
-        .onStart([]()
-                 {
+  ArduinoOTA
+      .onStart([]()
+               {
         String type;
         if (ArduinoOTA.getCommand() == U_FLASH)
           type = "sketch";
@@ -72,12 +74,12 @@ void otaSetup()
           type = "filesystem";
 
         Serial.println("Start updating " + type); })
-        .onEnd([]()
-               { Serial.println("\nEnd"); })
-        .onProgress([](unsigned int progress, unsigned int total)
-                    { Serial.printf("Progress: %u%%\r", (progress / (total / 100))); })
-        .onError([](ota_error_t error)
-                 {
+      .onEnd([]()
+             { Serial.println("\nEnd"); })
+      .onProgress([](unsigned int progress, unsigned int total)
+                  { Serial.printf("Progress: %u%%\r", (progress / (total / 100))); })
+      .onError([](ota_error_t error)
+               {
         Serial.printf("Error[%u]: ", error);
         if (error == OTA_AUTH_ERROR)
           Serial.println("Auth Failed");
@@ -89,42 +91,46 @@ void otaSetup()
           Serial.println("Receive Failed");
         else if (error == OTA_END_ERROR)
           Serial.println("End Failed"); });
-    ArduinoOTA.begin();
+  ArduinoOTA.begin();
 
-    Serial.println("OTA setup complete.");
+  Serial.println("OTA setup complete.");
 }
 
 void mDnsSetup()
 {
-    if (!MDNS.begin("basement-panel-xiao"))
-    {
-        Serial.println("Error setting up mDNS responder!");
+  if (!MDNS.begin("basement-panel-xiao"))
+  {
+    Serial.println("Error setting up mDNS responder!");
 
-        return;
-    }
-    Serial.println("mDNS responder started");
+    return;
+  }
+  Serial.println("mDNS responder started");
 }
 
 void restIndex()
 {
-    Serial.println("Serving index.html");
-    restServer.send(200, "text/plain", "test");
-    Serial.println("Served index.html");
+  Serial.println("Serving index.html");
+  restServer.send(200, "text/plain", "Basement-Panel-Xiao");
+  Serial.println("Served index.html");
 }
 
 void restDisplay()
 {
-  if (restServer.hasArg("plain")) {
+  if (restServer.hasArg("plain"))
+  {
     String body = restServer.arg("plain");
     body.toLowerCase();
 
-    if (body == "off") {
-      Serial.println("Turning ACK1 display off");
+    if (body == "off")
+    {
       display = false;
-    } else if (body == "on") {
-      Serial.println("Turning ACK1 display on");
+    }
+    else if (body == "on")
+    {
       display = true;
-    } else {
+    }
+    else
+    {
       restServer.send(400, "text/plain", body);
       return;
     }
@@ -149,11 +155,11 @@ void restSlider()
 
 void restSetup()
 {
-    restServer.on("/", restIndex);
-    restServer.on("/display", restDisplay);
-    restServer.on("/button", restButton);
-    restServer.on("/slider", restSlider);
-    restServer.begin();
+  restServer.on("/", restIndex);
+  restServer.on("/display", restDisplay);
+  restServer.on("/button", restButton);
+  restServer.on("/slider", restSlider);
+  restServer.begin();
 
-    Serial.println("REST server running");
+  Serial.println("REST server running");
 }

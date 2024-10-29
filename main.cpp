@@ -6,11 +6,20 @@
 
 #include "services.hpp"
 
-// #define ACK1_PIN RX
-// #define FIGPI_PIN 2
-// #define M8X8_PIN1 3
-// #define M8X8_PIN2 4
-// #define ANANO_PIN 10
+#define ACK1_ADDR 0x10
+#define ACK1_STATUS_CMD 0x01
+#define ACK1_BRIGHTNESS_CMD 0x08
+#define ACK1_COLOR_BG_CMD 0x09
+#define ACK1_COLOR_FG_CMD 0x0A
+#define ACK1_LEDON_CMD 0x11
+#define ACK1_LEDOFF_CMD 0x12
+#define ACK1_LEDASCII_CMD 0x13
+#define ACK1_LEDSCROLL_CMD 0x14
+#define ACK1_LEDCLR_CMD 0x15
+#define ACK1_TONEON_CMD 0x16
+#define ACK1_TONEOFF_CMD 0x17
+#define ACK1_EEPROM_READ_CMD 0x80
+#define ACK1_EEPROM_WRITE_CMD 0x81
 
 #define SS_NEOKEY_ADDR 0x30
 
@@ -25,6 +34,13 @@
 
 bool display = true;
 bool isInput = display;
+
+bool ack1Init = false;
+bool ack1Display = false;
+const char *ack1BootMessage = "Hello world!";
+const char *ack1Message = "Dad loves Stella and Beau!";\
+const int BaseToneFrequencies1[4] = {261, 293, 329, 349}; // C4, D4, E4, F4
+const int BaseToneFrequencies2[4] = {523, 587, 659, 698}; // C5, D5, E5, F5
 
 Adafruit_NeoKey_1x4 neokey;
 bool neokeyInit = false;
@@ -61,6 +77,174 @@ uint32_t wheel(byte wheelPos)
   }
   wheelPos -= 170;
   return seesaw_NeoPixel::Color(wheelPos * 3, 255 - wheelPos * 3, 0);
+}
+
+bool ack1Response(size_t len)
+{
+  size_t recv = Wire.requestFrom(ACK1_ADDR, len);
+  if (recv != len)
+  {
+    log_e("%d response bytes expected, %d bytes received", len, recv);
+    return false;
+  }
+
+  if (recv > 32)
+  {
+    log_e("Response too long, max 32 bytes");
+    return false;
+  }
+
+  uint8_t responseBytes[32];
+  for (size_t i = 0; i < recv; i++)
+  {
+    responseBytes[i] = Wire.read();
+    log_d("Reading response byte %d: %02x", i, responseBytes[i]);
+  }
+
+  if (len == 1 && responseBytes[0] != 0)
+  {
+    log_e("Response code is not 0: %02x", responseBytes[0]);
+    return false;
+  }
+
+  return true;
+}
+
+bool ack1Command(uint8_t cmd, const uint8_t *data = NULL, size_t len = 0)
+{
+  if (!ack1Init)
+  {
+    log_e("ACK1 not initialized!");
+    return false;
+  }
+
+  uint8_t response[2];
+  bool success = true;
+
+  Wire.beginTransmission(ACK1_ADDR);
+
+  size_t responseBytes = 0;
+  switch (cmd)
+  {
+  case ACK1_LEDCLR_CMD:
+    log_d("Sending LEDCLR command");
+    Wire.write(ACK1_LEDCLR_CMD);
+    ack1Display = false;
+    break;
+  case ACK1_LEDSCROLL_CMD:
+    log_d("Sending LEDSCROLL command");
+    Wire.write(ACK1_LEDSCROLL_CMD);
+    Wire.write(static_cast<uint8_t>(len));
+    Wire.write(data, len);
+    ack1Display = true;
+    break;
+  case ACK1_TONEON_CMD:
+    log_d("Sending TONEON command");
+    Wire.write(ACK1_TONEON_CMD);
+    if (len != 2)
+    {
+      log_e("TONEON command requires 2 bytes of data");
+      success = false;
+      break;
+    }
+    Wire.write(data, 2);
+    break;
+  case ACK1_TONEOFF_CMD:
+    log_d("Sending TONEOFF command");
+    Wire.write(ACK1_TONEOFF_CMD);
+    break;
+  case ACK1_STATUS_CMD:
+    log_d("Sending status command");
+    Wire.write(ACK1_STATUS_CMD);
+    responseBytes = 1;
+    break;
+  default:
+    log_d("Sending default command");
+    Wire.write(ACK1_STATUS_CMD);
+    responseBytes = 1;
+    break;
+  }
+
+  bool endTransmissionSuccess = Wire.endTransmission();
+  if (endTransmissionSuccess != 0)
+  {
+    log_e("Failed to end transmission, error: %d", endTransmissionSuccess);
+    // return false;
+  }
+
+  if (responseBytes > 0)
+  {
+    success &= ack1Response(responseBytes);
+  }
+  else {
+    // TODO: not sure if I need status command after all commands??
+    Wire.beginTransmission(ACK1_ADDR);
+    Wire.write(ACK1_STATUS_CMD);
+    Wire.endTransmission();
+    success &= ack1Response(1);
+  }
+
+  return success;
+}
+
+void ack1Wake()
+{
+  ack1Command(ACK1_LEDSCROLL_CMD, (uint8_t *)ack1Message, strlen(ack1Message));
+}
+
+void ack1Clear()
+{
+  // one clear only stops scroll, second clear clears display (not sure why?)
+  ack1Command(ACK1_LEDCLR_CMD);
+  // ack1Command(ACK1_LEDCLR_CMD);
+}
+
+void ack1Tone(uint16_t freq)
+{
+  if (freq == 0)
+  {
+    ack1Command(ACK1_TONEOFF_CMD);
+    return;
+  }
+
+  uint8_t toneData[2];
+  // freq = ((params[0]) << 8) | (params[1]);
+  toneData[0] = freq >> 8;
+  toneData[1] = freq & 0xFF;
+  log_d("Tone freq: %d", freq);
+  log_d("Tone data: %02x %02x", toneData[0], toneData[1]);
+  ack1Command(ACK1_TONEON_CMD, toneData, 2);
+}
+
+void ack1Setup()
+{
+  if (!Wire.begin())
+  {
+    Serial.println("I2C not started!");
+    return;
+  }
+
+  ack1Command(ACK1_LEDSCROLL_CMD, (uint8_t *)ack1BootMessage, strlen(ack1BootMessage));
+  log_d("ACK1 status: %d", ack1Command(ACK1_STATUS_CMD));
+  ack1Display = true;
+  ack1Init = true;
+}
+
+void ack1Update()
+{
+  if (!ack1Init)
+  {
+    return;
+  }
+
+  if (display && !ack1Display)
+  {
+    ack1Command(ACK1_LEDSCROLL_CMD, (uint8_t *)ack1Message, strlen(ack1Message));
+  }
+  else if (!display)
+  {
+    ack1Clear();
+  }
 }
 
 void neokeySetup()
@@ -102,12 +286,20 @@ void neokeyChangeToggle()
 
   for (uint16_t i = 0; i < neokey.pixels.numPixels(); i++)
   {
-    uint32_t color = neokeyToggle && neokeyState[i]
-                         ? wheel(map(i, 0, neokey.pixels.numPixels(), 0, 255))
-                         : 0x000000;
+    uint32_t color = 0x000000;
+
+    if (neokeyToggle && neokeyState[i])
+    {
+      color = wheel(map(i, 0, neokey.pixels.numPixels(), 0, 255));
+    }
+    else if (!neokeyToggle && attinySliderReading > (1023 / neokey.pixels.numPixels()) * i)
+    {
+      color = wheel(map(i, 0, neokey.pixels.numPixels(), 0, 255));
+    }
 
     neokey.pixels.setPixelColor(i, color);
   }
+
   neokey.pixels.show();
 }
 
@@ -125,28 +317,39 @@ NeoKey1x4Callback neokeyCallback(keyEvent evt)
 {
   uint8_t key = evt.bit.NUM;
   uint32_t color = 0x0; // default event to turn LED off
+  uint16_t tone = 0x0;
 
-  // push on case, or toggle state if toggle is enabled
-  if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING)
+  if (neokeyToggle)
   {
-    if (neokeyToggle)
+    if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING)
     {
       neokeyState[key] = !neokeyState[key];
+      tone = BaseToneFrequencies2[key];
     }
-    else
+
+    if (neokeyState[key])
     {
       color = wheel(map(key, 0, neokey.pixels.numPixels(), 0, 255));
     }
   }
-
-  // toggle on case
-  if (neokeyToggle && neokeyState[key])
+  else if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING)
   {
     color = wheel(map(key, 0, neokey.pixels.numPixels(), 0, 255));
+    tone = BaseToneFrequencies1[key];
   }
+
+  if (tone > 0)
+  {
+    int pitchModifier = map(attinySliderReading, 0, 1023, -200, 200);
+    tone += pitchModifier;
+  }
+
+  // only play tone if button is pressed
+  tone = attinyButtonState ? tone : 0;
 
   neokey.pixels.setPixelColor(key, color);
   neokey.pixels.show();
+  ack1Tone(tone);
 
   return 0;
 }
@@ -200,6 +403,12 @@ void rotaryUpdate()
       rotaryBtnIsPressed = true;
       rotaryLastBtnPress = millis();
       neokeyChangeToggle();
+
+      if (attinyButtonState) {
+        ack1Tone(1000);
+        delay(100);
+        ack1Tone(0);
+      }
     }
   }
   else
@@ -261,10 +470,10 @@ void attinyUpdate()
       attinyLastSliderChange = millis();
       attinySliderReading = newReading;
 
-      neokey.pixels.setBrightness(map(attinySliderReading, 0, 1023, 0, 255));
+      neokey.pixels.setBrightness(map(attinySliderReading, 0, 1024, 0, 255));
       neokey.pixels.show();
 
-      rotaryRgbLed.setBrightness(map(attinySliderReading, 0, 1023, 0, 100));
+      rotaryRgbLed.setBrightness(map(attinySliderReading, 0, 1024, 0, 100));
       rotaryRgbLed.show();
 
       attinySs.digitalWrite(SS_ATTINY_LED_PIN, attinySliderReading < 512);
@@ -273,7 +482,7 @@ void attinyUpdate()
       {
         for (uint16_t i = 0; i < neokey.pixels.numPixels(); i++)
         {
-          uint32_t color = attinySliderReading > (1023 / neokey.pixels.numPixels()) * i
+          uint32_t color = attinySliderReading > (1024 / neokey.pixels.numPixels()) * i
                                ? wheel(map(i, 0, neokey.pixels.numPixels(), 0, 255))
                                : 0x0;
           neokey.pixels.setPixelColor(i, color);
@@ -286,15 +495,10 @@ void attinyUpdate()
 
 void setup()
 {
-  delay(5000);
-
-  // pinMode(ACK1_PIN, OUTPUT);
-  // pinMode(FIGPI_PIN, OUTPUT);
-  // pinMode(M8X8_PIN1, OUTPUT);
-  // pinMode(M8X8_PIN2, OUTPUT);
-  // pinMode(ANANO_PIN, OUTPUT);
-
   Serial.begin(115200);
+  while (!Serial)
+    delay(10);
+  delay(3000); // let I2C devices settle
   Serial.println("Starting setup...");
 
   wifiSetup();
@@ -305,34 +509,16 @@ void setup()
   neokeySetup();
   rotarySetup();
   attinySetup();
+  delay(1000);
+  ack1Setup();
 }
 
 void loop()
 {
-  // digitalWrite(ACK1_PIN, display);
-  // digitalWrite(FIGPI_PIN, display);
-  // digitalWrite(ANANO_PIN, display);
-  // digitalWrite(M8X8_PIN1, !display);
-
-  // // high impedance mode when display is on, low output when display is off
-  // if (display && !isInput)
-  // {
-  //   pinMode(M8X8_PIN2, INPUT);
-  //   digitalWrite(M8X8_PIN2, false);
-  //   isInput = true;
-  //   delay(10);
-  // }
-  // else if (!display && isInput)
-  // {
-  //   pinMode(M8X8_PIN2, OUTPUT);
-  //   digitalWrite(M8X8_PIN2, true);
-  //   isInput = false;
-  //   delay(10);
-  // }
-
+  ack1Update();
+  attinyUpdate();
   neokeyUpdate();
   rotaryUpdate();
-  attinyUpdate();
 
   ArduinoOTA.handle();
   restServer.handleClient();
