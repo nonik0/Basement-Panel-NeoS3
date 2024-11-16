@@ -4,6 +4,7 @@
 #include <seesaw_neopixel.h>
 #include <SPI.h>
 
+#include "music.h"
 #include "services.hpp"
 
 #define ACK1_ADDR 0x10
@@ -36,62 +37,23 @@
 #define SS_NEOSLIDER_SLD_PIN 18
 #define SS_NEOSLIDER_LED_COUNT 4
 
+#define DELAY_MS 10
+#define BASE_DELAY 20
+
 // #define SS_ATTINY_ADDR 0x49
 // #define SS_ATTINY_LED_PIN 10
 // #define SS_ATTINY_BTN_PIN 15
 // #define SS_ATTINY_SLD_PIN 16
 
-// macros for each note in an octave
-#define Cn 0  // C  (C normal)
-#define Cs 1  // C# (C sharp)
-#define Df Cs // Db (D flat)
-#define Dn 2  // D  (D normal)
-#define Ds 3  // D# (D sharp)
-#define Ef Ds // Eb (E flat)
-#define En 4  // E  (E normal)
-#define Fn 5  // F  (F normal)
-#define Fs 6  // F# (F sharp)
-#define Gf Fs // Gb (G flat)
-#define Gn 7  // G  (G normal)
-#define Gs 8  // G# (G sharp)
-#define Af Gs // Ab (A flat)
-#define An 9  // A  (A normal)
-#define As 10 // A# (A sharp)
-#define Bf As // Bb (B flat)
-#define Bn 11 // B  (B normal)
-
-// notes are specified with 16 bits
-// the octave:    high nibble, high byte
-// the note:      low nibble,  high byte
-// the duration:  low byte
-#define N(note, octave, timing) ((octave << 12) | (note << 8) | timing)
-#define NOTE_MASK 0x0F00
-#define OCTAVE_MASK 0xF000
-#define TIMING_MASK 0x00FF
-
-// other "sounds" are defined within octave zero
-// which otherwise does not exits
-#define PAUSE(timing) N(0, 0, timing) // silence
-
-#define BEEP_HIGH(timing) N(1, 0, timing) // 4100 Hz beep
-#define BEEP_HIGH_TOP 1951
-
-#define BEEP_LOW(timing) N(3, 0, timing) // 1367 Hz beep
-#define BEEP_LOW_TOP 5854
-
-const uint16_t t2_theme[] PROGMEM = {
-    N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(20),
-    N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(20),
-    N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(20),
-    N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(20),
-
-    N(Dn, 6, 9), N(En, 6, 9), N(Fn, 6, 60), N(En, 6, 15), N(Cn, 6, 9), N(Fn, 5, 60),
-    N(Dn, 6, 9), N(En, 6, 9), N(Fn, 6, 60), N(En, 6, 15), N(Cn, 6, 9), N(An, 6, 60), N(Gn, 6, 60),
-    N(Dn, 6, 9), N(En, 6, 9), N(Fn, 6, 60), N(En, 6, 15), N(Cn, 6, 9), N(Gn, 5, 60),
-    N(Fn, 5, 60), N(Dn, 5, 9), N(Fn, 5, 60), N(En, 5, 60),
-    0};
+enum Mode
+{
+  Music,
+  Lights,
+  Blinky,
+};
 
 bool display = true;
+Mode mode = Mode::Music;
 
 bool ack1Init = false;
 bool ack1Display = false;
@@ -102,11 +64,14 @@ const int BaseToneFrequencies1[4] = {261, 293, 329, 349};                    // 
 const int BaseToneFrequencies2[4] = {523, 587, 659, 698};                    // C5, D5, E5, F5
 
 Adafruit_NeoKey_1x4 neokeyArray[2] = {Adafruit_NeoKey_1x4(SS_NEOKEY1_ADDR), Adafruit_NeoKey_1x4(SS_NEOKEY2_ADDR)};
-Adafruit_MultiNeoKey1x4 neokey((Adafruit_NeoKey_1x4 *)neokeyArray, 2, 1);
+Adafruit_MultiNeoKey1x4 neoKey((Adafruit_NeoKey_1x4 *)neokeyArray, 2, 1);
 bool neoKeyInit = false;
-bool neoKeyToggle = false;
-bool neoKeyState[4] = {true, true, true, true};
 NeoKey1x4Callback neoKeyCallback(keyEvent evt);
+// light/blinky mode state
+uint8_t neoKeyWheelPos = 0x00;
+bool neoKeyPixelState[SS_NEOKEY_COUNT];
+int neoKeyBlinkyDelay[SS_NEOKEY_COUNT]; // blinky state
+unsigned long neoKeyLastPress = 0;
 
 bool neoSliderInit = false;
 Adafruit_seesaw neoSliderSs;
@@ -142,6 +107,51 @@ uint32_t wheel(byte wheelPos)
   }
   wheelPos -= 170;
   return seesaw_NeoPixel::Color(wheelPos * 3, 255 - wheelPos * 3, 0);
+}
+
+void changeMode()
+{
+  if (!ack1Init || !neoKeyInit || !neoSliderInit || !rotaryInit)
+  {
+    log_e("Not all components initialized");
+    return;
+  }
+
+  mode = static_cast<Mode>((static_cast<int>(mode) + 1) % 3);
+
+  if (mode == Music)
+  {
+    log_i("Switching to Music mode");
+
+    for (int i = 0; i < SS_NEOKEY_COUNT; i++)
+    {
+      neoKeyPixelState[i] = false;
+      neoKey.setPixelColor(i, 0x000000);
+    }
+  }
+  else if (mode == Lights)
+  {
+    log_i("Switching to Lights mode");
+
+    for (int i = 0; i < SS_NEOKEY_COUNT; i++)
+    {
+      neoKeyPixelState[i] = true;
+      neoKey.setPixelColor(i, wheel(map(i, 0, SS_NEOKEY_COUNT, 0, 255)));
+    }
+  }
+  else if (mode == Blinky)
+  {
+    log_i("Switching to Blinky mode");
+
+    for (int i = 0; i < SS_NEOKEY_COUNT; i++)
+    {
+      neoKeyPixelState[i] = true;
+      neoKeyBlinkyDelay[i] = random(BASE_DELAY * 5, BASE_DELAY * 10);
+      neoKey.setPixelColor(i, wheel(neoKeyWheelPos + random(0, 16)));
+    }
+  }
+
+  neoKey.show();
 }
 
 bool ack1Response(uint8_t *data, size_t len)
@@ -233,7 +243,8 @@ bool ack1Command(uint8_t cmd, const uint8_t *data = NULL, size_t len = 0)
   uint8_t responseBytes[32];
   if (responseSize > 0)
   {
-    if (!ack1Response(responseBytes, responseSize)) {
+    if (!ack1Response(responseBytes, responseSize))
+    {
       log_e("Failed to read command response");
       return false;
     }
@@ -249,7 +260,8 @@ bool ack1Command(uint8_t cmd, const uint8_t *data = NULL, size_t len = 0)
     Wire.beginTransmission(ACK1_ADDR);
     Wire.write(ACK1_STATUS_CMD);
     Wire.endTransmission();
-    if (!ack1Response(responseBytes, 1)) {
+    if (!ack1Response(responseBytes, 1))
+    {
       log_e("Failed to read command status");
       return false;
     }
@@ -384,7 +396,7 @@ void neoKeySetup()
     return;
   }
 
-  if (!neokey.begin())
+  if (!neoKey.begin())
   {
     log_e("Couldn't find NeoKey seesaw(s) on default address(es)");
     return;
@@ -392,52 +404,24 @@ void neoKeySetup()
 
   for (uint16_t i = 0; i < SS_NEOKEY_COUNT; i++)
   {
-    neokey.setPixelColor(i, 0x808080);
-    neokey.show();
+    neoKey.setPixelColor(i, 0x808080);
+    neoKey.show();
     delay(50);
   }
   for (uint16_t i = 0; i < SS_NEOKEY_COUNT; i++)
   {
-    neokey.setPixelColor(i, 0x000000);
-    neokey.show();
+    neoKey.setPixelColor(i, 0x000000);
+    neoKey.show();
     delay(50);
   }
 
   for (int i = 0; i < SS_NEOKEY_COUNT; i++)
   {
-    neokey.registerCallback(i, neoKeyCallback);
+    neoKey.registerCallback(i, neoKeyCallback);
   }
 
   log_i("NeoKey initialized");
   neoKeyInit = true;
-}
-
-void neoKeyChangeToggle()
-{
-  if (!neoKeyInit)
-  {
-    return;
-  }
-
-  neoKeyToggle = !neoKeyToggle;
-
-  for (uint16_t i = 0; i < SS_NEOKEY_COUNT; i++)
-  {
-    uint32_t color = 0x000000;
-
-    if (neoKeyToggle && neoKeyState[i])
-    {
-      color = wheel(map(i, 0, SS_NEOKEY_COUNT, 0, 255));
-    }
-    else if (!neoKeyToggle && neoSliderReading > (1023 / SS_NEOKEY_COUNT) * i)
-    {
-      color = wheel(map(i, 0, SS_NEOKEY_COUNT, 0, 255));
-    }
-
-    neokey.setPixelColor(i, color);
-  }
-
-  neokey.show();
 }
 
 void neoKeyUpdate()
@@ -447,40 +431,64 @@ void neoKeyUpdate()
     return;
   }
 
-  neokey.read();
+  neoKey.read();
+
+  if (mode == Mode::Blinky)
+  {
+    for (int i = 0; i < SS_NEOKEY_COUNT; i++)
+    {
+      if (--neoKeyBlinkyDelay[i] > 0)
+        continue;
+
+      neoKeyPixelState[i] = !neoKeyPixelState[i];
+      neoKeyBlinkyDelay[i] = random(BASE_DELAY, BASE_DELAY * 2);
+
+      uint32_t color = neoKeyPixelState[i] ? wheel(neoKeyWheelPos + random(0, 16)) : 0;
+      neoKey.setPixelColor(i, color);
+    }
+    neoKey.show();
+  }
 }
 
 NeoKey1x4Callback neoKeyCallback(keyEvent evt)
 {
-  log_i("NeoKey event: %d %s", evt.bit.NUM, evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING ? "rising" : "falling");
+  log_d("NeoKey event: %d %s", evt.bit.NUM, evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING ? "rising" : "falling");
 
   uint8_t key = evt.bit.NUM;
   uint32_t color = 0x0; // default event to turn LED off
   uint16_t tone = 0x0;  // default event to turn tone off
 
-  if (neoKeyToggle)
+  if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING)
+  {
+    neoKeyLastPress = millis();
+  }
+
+  if (mode == Mode::Music)
   {
     if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING)
     {
-      neoKeyState[key] = !neoKeyState[key];
-      tone = BaseToneFrequencies2[key];
+      color = wheel(map(key, 0, SS_NEOKEY_COUNT, 0, 255)); // TODO: change to note color? TODO also eventually show note name on display
+      tone = BaseToneFrequencies[key % 8];
+    }
+  }
+  else if (mode == Mode::Lights)
+  {
+    if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING)
+    {
+      neoKeyPixelState[key] = !neoKeyPixelState[key];
     }
 
-    // if (!neokeyState[0] && !neokeyState[1] && !neokeyState[2] && !neokeyState[3])
-    // {
-    //   playTerminatorTheme();
-    //   return 0;
-    // }
-
-    if (neoKeyState[key])
+    if (neoKeyPixelState[key])
     {
       color = wheel(map(key, 0, SS_NEOKEY_COUNT, 0, 255));
     }
   }
-  else if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING)
+  else if (mode == Mode::Blinky)
   {
-    color = wheel(map(key, 0, SS_NEOKEY_COUNT, 0, 255));
-    tone = BaseToneFrequencies1[key % 8];
+    if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING)
+    {
+      neoKeyBlinkyDelay[key] = 1000;
+    }
   }
 
   if (tone > 0)
@@ -489,11 +497,8 @@ NeoKey1x4Callback neoKeyCallback(keyEvent evt)
     tone += pitchModifier;
   }
 
-  // only play tone if button is pressed
-  // tone = attinyButtonState ? tone : 0;
-
-  neokey.setPixelColor(key, color);
-  neokey.show();
+  neoKey.setPixelColor(key, color);
+  neoKey.show();
   ack1Tone(tone);
 
   return 0;
@@ -507,52 +512,21 @@ void neoSliderSetup()
     return;
   }
 
-  if (!neoSliderSs.begin(SS_NEOSLIDER_ADDR)) {
-    Serial.println(F("seesaw not found!"));
-    while(1) delay(10);
+  if (!neoSliderSs.begin(SS_NEOSLIDER_ADDR) || !neoSliderPixels.begin(SS_NEOSLIDER_ADDR))
+  {
+    log_e("Couldn't find NeoSlider seesaw on default address");
+    return;
   }
 
-  uint16_t pid;
-  uint8_t year, mon, day;
-
-  neoSliderSs.getProdDatecode(&pid, &year, &mon, &day);
-  Serial.print("seesaw found PID: ");
-  Serial.print(pid);
-  Serial.print(" datecode: ");
-  Serial.print(2000+year); Serial.print("/");
-  Serial.print(mon); Serial.print("/");
-  Serial.println(day);
-
-  if (pid != 5295) {
-    Serial.println(F("Wrong seesaw PID"));
-    while (1) delay(10);
+  uint16_t version = neoSliderSs.getVersion() >> 16;
+  if (version != 5295)
+  {
+    log_e("Wrong seesaw firmware for slider loaded: %d", version);
+    return;
   }
 
-  if (!neoSliderPixels.begin(SS_NEOSLIDER_ADDR)){
-    Serial.println("seesaw pixels not found!");
-    while(1) delay(10);
-  }
-
-  Serial.println(F("seesaw started OK!"));
-
-  neoSliderPixels.setBrightness(255);  // half bright
-  neoSliderPixels.show(); // Initialize all pixels to 'off'
-
-  // if (!neoSliderSs.begin(SS_NEOSLIDER_ADDR) || !neoSliderPixels.begin(SS_NEOSLIDER_ADDR))
-  // {
-  //   log_e("Couldn't find NeoSlider seesaw on default address");
-  //   return;
-  // }
-
-  // uint32_t version = ((rotarySs.getVersion() >> 16) & 0xFFFF);
-  // if (version != 5295)
-  // {
-  //   log_e("Wrong seesaw firmware for slider loaded: %d", version);
-  //   return;
-  // }
-
-  // neoSliderPixels.setBrightness(255);
-  // neoSliderPixels.show();
+  neoSliderPixels.setBrightness(255);
+  neoSliderPixels.show();
   neoSliderInit = true;
 
   log_i("NeoSlider initialized");
@@ -623,14 +597,10 @@ void rotaryUpdate()
     {
       rotaryBtnIsPressed = true;
       rotaryLastBtnPress = millis();
-      // neokeyChangeToggle();
-
-      // if (attinyButtonState)
-      //{
+      changeMode();
       ack1Tone(1000);
       delay(100);
       ack1Tone(0);
-      //}
     }
   }
   else
@@ -641,8 +611,9 @@ void rotaryUpdate()
   int32_t newEncPos = rotarySs.getEncoderPosition();
   if (rotaryEncPos != newEncPos)
   {
-    Serial.println(newEncPos);
-    rotaryNeoPixel.setPixelColor(0, wheel((newEncPos * 5) & 0xFF)); // 3 rotations for full cycle with 24 step encoder?
+    log_d(newEncPos);
+    neoKeyWheelPos = (newEncPos * 5) & 0xFF;
+    rotaryNeoPixel.setPixelColor(0, wheel(neoKeyWheelPos)); // 3 rotations for full cycle with 24 step encoder?
     rotaryNeoPixel.show();
     rotaryEncPos = newEncPos;
   }
@@ -733,7 +704,7 @@ void setup()
   neoKeySetup();
   neoSliderSetup();
   rotarySetup();
-  //attinySetup();
+  // attinySetup();
   delay(1000);
   ack1Setup();
 }
@@ -749,5 +720,5 @@ void loop()
   ArduinoOTA.handle();
   restServer.handleClient();
   checkWifiStatus();
-  delay(10);
+  delay(DELAY_MS);
 }
