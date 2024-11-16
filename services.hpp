@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Arduino.h>
 #include <ArduinoOTA.h>
 #include <ESPmDNS.h>
 #include <WebServer.h>
@@ -7,27 +8,29 @@
 
 #include "secrets.h"
 
+const char *HOSTNAME = "Basement-Panel-Xiao";
+const char *hostname = "Basement-Panel-Xiao";
+
 WebServer restServer(80);
 extern bool display;
-extern bool attinyButtonState;
-extern uint16_t attinySliderReading;
+//extern bool attinyButtonState;
+//extern uint16_t attinySliderReading;
 extern void ack1Wake();
 extern void ack1Clear();
 
 void wifiSetup()
 {
-  Serial.println("Wifi setting up...");
+  log_i("Wifi setting up...");
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   while (WiFi.waitForConnectResult() != WL_CONNECTED)
   {
-    Serial.println("Connection Failed! Rebooting...");
+    log_e("Connection Failed! Rebooting...");
     delay(5000);
     ESP.restart();
   }
 
-  Serial.print("Wifi ready, IP address: ");
-  Serial.println(WiFi.localIP());
+  log_i("Wifi ready, IP address: %s", WiFi.localIP().toString().c_str());
 }
 
 volatile long wifiStatusDelayMs = 0;
@@ -59,10 +62,10 @@ void checkWifiStatus()
 
 void otaSetup()
 {
-  Serial.println("OTA setting up...");
+  log_i("OTA setting up...");
 
   // ArduinoOTA.setPort(3232);
-  ArduinoOTA.setHostname("Basement-Panel-Xiao");
+  ArduinoOTA.setHostname(HOSTNAME);
 
   ArduinoOTA
       .onStart([]()
@@ -82,36 +85,36 @@ void otaSetup()
                {
         Serial.printf("Error[%u]: ", error);
         if (error == OTA_AUTH_ERROR)
-          Serial.println("Auth Failed");
+          log_e("Auth Failed");
         else if (error == OTA_BEGIN_ERROR)
-          Serial.println("Begin Failed");
+          log_e("Begin Failed");
         else if (error == OTA_CONNECT_ERROR)
-          Serial.println("Connect Failed");
+          log_e("Connect Failed");
         else if (error == OTA_RECEIVE_ERROR)
-          Serial.println("Receive Failed");
+          log_e("Receive Failed");
         else if (error == OTA_END_ERROR)
-          Serial.println("End Failed"); });
+          log_e("End Failed"); });
   ArduinoOTA.begin();
 
-  Serial.println("OTA setup complete.");
+  log_i("OTA setup complete.");
 }
 
 void mDnsSetup()
 {
-  if (!MDNS.begin("basement-panel-xiao"))
+  if (!MDNS.begin(hostname))
   {
-    Serial.println("Error setting up mDNS responder!");
+    log_e("Error setting up mDNS responder!");
 
     return;
   }
-  Serial.println("mDNS responder started");
+  log_i("mDNS responder started");
 }
 
 void restIndex()
 {
-  Serial.println("Serving index.html");
+  log_i("Serving index.html");
   restServer.send(200, "text/plain", "Basement-Panel-Xiao");
-  Serial.println("Served index.html");
+  log_i("Served index.html");
 }
 
 void restDisplay()
@@ -139,27 +142,27 @@ void restDisplay()
   restServer.send(200, "text/plain", display ? "on" : "off");
 }
 
-void restButton()
-{
-  restServer.send(200, "text/plain", attinyButtonState ? "on" : "off");
-}
+// void restButton()
+// {
+//   restServer.send(200, "text/plain", attinyButtonState ? "on" : "off");
+// }
 
-void restSlider()
-{
-  bool sliderNotZero = attinySliderReading != 0;
+// void restSlider()
+// {
+//   bool sliderNotZero = attinySliderReading != 0;
 
-  String output = "Value: " + String(attinySliderReading) + (sliderNotZero ? "" : " (no slider detected)");
+//   String output = "Value: " + String(attinySliderReading) + (sliderNotZero ? "" : " (no slider detected)");
 
-  restServer.send(200, "text/plain", output);
-}
+//   restServer.send(200, "text/plain", output);
+// }
 
 void restSetup()
 {
   restServer.on("/", restIndex);
   restServer.on("/display", restDisplay);
-  restServer.on("/button", restButton);
-  restServer.on("/slider", restSlider);
+  // restServer.on("/button", restButton);
+  // restServer.on("/slider", restSlider);
   restServer.begin();
 
-  Serial.println("REST server running");
+  log_i("REST server running");
 }

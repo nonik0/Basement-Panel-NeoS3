@@ -18,19 +18,28 @@
 #define ACK1_LEDCLR_CMD 0x15
 #define ACK1_TONEON_CMD 0x16
 #define ACK1_TONEOFF_CMD 0x17
+#define ACK1_COUNTER_CMD 0x21
 #define ACK1_EEPROM_READ_CMD 0x80
 #define ACK1_EEPROM_WRITE_CMD 0x81
 
-#define SS_NEOKEY_ADDR 0x30
+#define SS_NEOKEY1_ADDR 0x30
+#define SS_NEOKEY2_ADDR 0x31
+#define SS_NEOKEY_COUNT 4 * 2
 
+#define SS_ROTARY_ADDR 0x36
 #define SS_ROTARY_LED_PIN 6
 #define SS_ROTARY_BTN_PIN 24
-#define SS_ROTARY_ADDR 0x36
+#define SS_ROTARY_LED_COUNT 1
 
-#define SS_ATTINY_ADDR 0x49
-#define SS_ATTINY_LED_PIN 10
-#define SS_ATTINY_BTN_PIN 15
-#define SS_ATTINY_SLD_PIN 16
+#define SS_NEOSLIDER_ADDR 0x38
+#define SS_NEOSLIDER_LED_PIN 14
+#define SS_NEOSLIDER_SLD_PIN 18
+#define SS_NEOSLIDER_LED_COUNT 4
+
+// #define SS_ATTINY_ADDR 0x49
+// #define SS_ATTINY_LED_PIN 10
+// #define SS_ATTINY_BTN_PIN 15
+// #define SS_ATTINY_SLD_PIN 16
 
 // macros for each note in an octave
 #define Cn 0  // C  (C normal)
@@ -83,34 +92,40 @@ const uint16_t t2_theme[] PROGMEM = {
     0};
 
 bool display = true;
-bool isInput = display;
 
 bool ack1Init = false;
 bool ack1Display = false;
 const char *ack1BootMessage = "Hello world!";
 const char *ack1Message = "Dad loves Stella and Beau!";
-const int BaseToneFrequencies1[4] = {261, 293, 329, 349}; // C4, D4, E4, F4
-const int BaseToneFrequencies2[4] = {523, 587, 659, 698}; // C5, D5, E5, F5
+const int BaseToneFrequencies[8] = {261, 293, 329, 349, 392, 440, 493, 523}; // C4, D4, E4, F4, G4, A4, B4, C5
+const int BaseToneFrequencies1[4] = {261, 293, 329, 349};                    // C4, D4, E4, F4
+const int BaseToneFrequencies2[4] = {523, 587, 659, 698};                    // C5, D5, E5, F5
 
-Adafruit_NeoKey_1x4 neokey;
-bool neokeyInit = false;
-bool neokeyToggle = false;
-bool neokeyState[4] = {true, true, true, true};
-NeoKey1x4Callback neokeyCallback(keyEvent evt);
+Adafruit_NeoKey_1x4 neokeyArray[2] = {Adafruit_NeoKey_1x4(SS_NEOKEY1_ADDR), Adafruit_NeoKey_1x4(SS_NEOKEY2_ADDR)};
+Adafruit_MultiNeoKey1x4 neokey((Adafruit_NeoKey_1x4 *)neokeyArray, 2, 1);
+bool neoKeyInit = false;
+bool neoKeyToggle = false;
+bool neoKeyState[4] = {true, true, true, true};
+NeoKey1x4Callback neoKeyCallback(keyEvent evt);
+
+bool neoSliderInit = false;
+Adafruit_seesaw neoSliderSs;
+seesaw_NeoPixel neoSliderPixels = seesaw_NeoPixel(SS_NEOSLIDER_LED_COUNT, SS_NEOSLIDER_LED_PIN, NEO_GRB + NEO_KHZ800);
+uint16_t neoSliderReading = 0;
 
 Adafruit_seesaw rotarySs;
 bool rotaryInit = false;
-seesaw_NeoPixel rotaryRgbLed = seesaw_NeoPixel(1, SS_ROTARY_LED_PIN, NEO_GRB + NEO_KHZ800);
+seesaw_NeoPixel rotaryNeoPixel = seesaw_NeoPixel(SS_ROTARY_LED_COUNT, SS_ROTARY_LED_PIN, NEO_GRB + NEO_KHZ800);
 int32_t rotaryEncPos;
 bool rotaryBtnIsPressed = false;
 unsigned long rotaryLastBtnPress = 0;
 
-Adafruit_seesaw attinySs;
-bool attinyInit = false;
-bool attinyButtonState = false;
-unsigned long attinyLastSliderRead = 0;
-unsigned long attinyLastSliderChange = 0;
-uint16_t attinySliderReading = 0;
+// Adafruit_seesaw attinySs;
+// bool attinyInit = false;
+// bool attinyButtonState = false;
+// unsigned long attinyLastSliderRead = 0;
+// unsigned long attinyLastSliderChange = 0;
+// uint16_t attinySliderReading = 0;
 // unsigned long lastLedUpdate = 0;
 
 uint32_t wheel(byte wheelPos)
@@ -129,7 +144,7 @@ uint32_t wheel(byte wheelPos)
   return seesaw_NeoPixel::Color(wheelPos * 3, 255 - wheelPos * 3, 0);
 }
 
-bool ack1Response(size_t len)
+bool ack1Response(uint8_t *data, size_t len)
 {
   size_t recv = Wire.requestFrom(ACK1_ADDR, len);
   if (recv != len)
@@ -144,17 +159,10 @@ bool ack1Response(size_t len)
     return false;
   }
 
-  uint8_t responseBytes[32];
   for (size_t i = 0; i < recv; i++)
   {
-    responseBytes[i] = Wire.read();
-    log_d("Reading response byte %d: %02x", i, responseBytes[i]);
-  }
-
-  if (len == 1 && responseBytes[0] != 0)
-  {
-    log_e("Response code is not 0: %02x", responseBytes[0]);
-    return false;
+    data[i] = Wire.read();
+    log_d("Read response byte %d: %02x", i, data[i]);
   }
 
   return true;
@@ -168,12 +176,11 @@ bool ack1Command(uint8_t cmd, const uint8_t *data = NULL, size_t len = 0)
     return false;
   }
 
-  uint8_t response[2];
   bool success = true;
 
   Wire.beginTransmission(ACK1_ADDR);
 
-  size_t responseBytes = 0;
+  size_t responseSize = 0;
   switch (cmd)
   {
   case ACK1_LEDCLR_CMD:
@@ -206,12 +213,12 @@ bool ack1Command(uint8_t cmd, const uint8_t *data = NULL, size_t len = 0)
   case ACK1_STATUS_CMD:
     log_d("Sending status command");
     Wire.write(ACK1_STATUS_CMD);
-    responseBytes = 1;
+    responseSize = 1;
     break;
   default:
     log_d("Sending default command");
     Wire.write(ACK1_STATUS_CMD);
-    responseBytes = 1;
+    responseSize = 1;
     break;
   }
 
@@ -219,12 +226,22 @@ bool ack1Command(uint8_t cmd, const uint8_t *data = NULL, size_t len = 0)
   if (endTransmissionSuccess != 0)
   {
     log_e("Failed to end transmission, error: %d", endTransmissionSuccess);
-    // return false;
+    return false;
   }
 
-  if (responseBytes > 0)
+  // read response, otherwise check status
+  uint8_t responseBytes[32];
+  if (responseSize > 0)
   {
-    success &= ack1Response(responseBytes);
+    if (!ack1Response(responseBytes, responseSize)) {
+      log_e("Failed to read command response");
+      return false;
+    }
+
+    for (size_t i = 0; i < responseSize; i++)
+    {
+      log_i("Response byte %d: %02x", i, responseBytes[i]);
+    }
   }
   else
   {
@@ -232,7 +249,12 @@ bool ack1Command(uint8_t cmd, const uint8_t *data = NULL, size_t len = 0)
     Wire.beginTransmission(ACK1_ADDR);
     Wire.write(ACK1_STATUS_CMD);
     Wire.endTransmission();
-    success &= ack1Response(1);
+    if (!ack1Response(responseBytes, 1)) {
+      log_e("Failed to read command status");
+      return false;
+    }
+
+    success &= responseBytes[0] == 0x00 || responseBytes[0] == 0xFF; // 0xFF when LEDs are off
   }
 
   return success;
@@ -308,16 +330,29 @@ void playTerminatorTheme()
 
 void ack1Setup()
 {
+  if (ack1Init)
+  {
+    log_w("ACK1 already initialized");
+    return;
+  }
+
   if (!Wire.begin())
   {
-    Serial.println("I2C not started!");
+    log_e("Couldn't setup I2C");
+    return;
+  }
+
+  ack1Init = true;
+  if (!ack1Command(ACK1_STATUS_CMD))
+  {
+    ack1Init = false;
+    log_e("ACK1 not found");
     return;
   }
 
   ack1Command(ACK1_LEDSCROLL_CMD, (uint8_t *)ack1BootMessage, strlen(ack1BootMessage));
   log_d("ACK1 status: %d", ack1Command(ACK1_STATUS_CMD));
   ack1Display = true;
-  ack1Init = true;
 }
 
 void ack1Update()
@@ -330,72 +365,84 @@ void ack1Update()
   if (display && !ack1Display)
   {
     ack1Command(ACK1_LEDSCROLL_CMD, (uint8_t *)ack1Message, strlen(ack1Message));
+    ack1Display = true;
   }
-  else if (!display)
+  else if (!display && ack1Display)
   {
+    // first stop, second clears
     ack1Clear();
+    ack1Clear();
+    ack1Display = false;
   }
 }
 
-void neokeySetup()
+void neoKeySetup()
 {
-  if (!neokey.begin(SS_NEOKEY_ADDR))
+  if (neoKeyInit)
   {
-    Serial.println("Could not start NeoKey,check wiring?");
-    while (1)
-      delay(10);
+    log_w("NeoKey already initialized");
+    return;
   }
-  Serial.println("NeoKey started!");
 
-  neokey.pixels.setBrightness(40);
-
-  for (uint16_t i = 0; i < neokey.pixels.numPixels(); i++)
+  if (!neokey.begin())
   {
-    neokey.pixels.setPixelColor(i, 0x808080);
-    neokey.pixels.show();
+    log_e("Couldn't find NeoKey seesaw(s) on default address(es)");
+    return;
+  }
+
+  for (uint16_t i = 0; i < SS_NEOKEY_COUNT; i++)
+  {
+    neokey.setPixelColor(i, 0x808080);
+    neokey.show();
     delay(50);
   }
-  for (uint16_t i = 0; i < neokey.pixels.numPixels(); i++)
+  for (uint16_t i = 0; i < SS_NEOKEY_COUNT; i++)
   {
-    neokey.pixels.setPixelColor(i, 0x000000);
-    neokey.pixels.show();
+    neokey.setPixelColor(i, 0x000000);
+    neokey.show();
     delay(50);
   }
 
-  for (int i = 0; i < NEOKEY_1X4_KEYS; i++)
+  for (int i = 0; i < SS_NEOKEY_COUNT; i++)
   {
-    neokey.registerCallback(i, neokeyCallback);
+    neokey.registerCallback(i, neoKeyCallback);
   }
 
-  neokeyInit = true;
+  log_i("NeoKey initialized");
+  neoKeyInit = true;
 }
 
-void neokeyChangeToggle()
+void neoKeyChangeToggle()
 {
-  neokeyToggle = !neokeyToggle;
+  if (!neoKeyInit)
+  {
+    return;
+  }
 
-  for (uint16_t i = 0; i < neokey.pixels.numPixels(); i++)
+  neoKeyToggle = !neoKeyToggle;
+
+  for (uint16_t i = 0; i < SS_NEOKEY_COUNT; i++)
   {
     uint32_t color = 0x000000;
 
-    if (neokeyToggle && neokeyState[i])
+    if (neoKeyToggle && neoKeyState[i])
     {
-      color = wheel(map(i, 0, neokey.pixels.numPixels(), 0, 255));
+      color = wheel(map(i, 0, SS_NEOKEY_COUNT, 0, 255));
     }
-    else if (!neokeyToggle && attinySliderReading > (1023 / neokey.pixels.numPixels()) * i)
+    else if (!neoKeyToggle && neoSliderReading > (1023 / SS_NEOKEY_COUNT) * i)
     {
-      color = wheel(map(i, 0, neokey.pixels.numPixels(), 0, 255));
+      color = wheel(map(i, 0, SS_NEOKEY_COUNT, 0, 255));
     }
 
-    neokey.pixels.setPixelColor(i, color);
+    neokey.setPixelColor(i, color);
   }
 
-  neokey.pixels.show();
+  neokey.show();
 }
 
-void neokeyUpdate()
+void neoKeyUpdate()
 {
-  if (!neokeyInit)
+  if (!neoKeyInit)
   {
     return;
   }
@@ -403,17 +450,19 @@ void neokeyUpdate()
   neokey.read();
 }
 
-NeoKey1x4Callback neokeyCallback(keyEvent evt)
+NeoKey1x4Callback neoKeyCallback(keyEvent evt)
 {
+  log_i("NeoKey event: %d %s", evt.bit.NUM, evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING ? "rising" : "falling");
+
   uint8_t key = evt.bit.NUM;
   uint32_t color = 0x0; // default event to turn LED off
-  uint16_t tone = 0x0;
+  uint16_t tone = 0x0;  // default event to turn tone off
 
-  if (neokeyToggle)
+  if (neoKeyToggle)
   {
     if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING)
     {
-      neokeyState[key] = !neokeyState[key];
+      neoKeyState[key] = !neoKeyState[key];
       tone = BaseToneFrequencies2[key];
     }
 
@@ -423,57 +472,131 @@ NeoKey1x4Callback neokeyCallback(keyEvent evt)
     //   return 0;
     // }
 
-    if (neokeyState[key])
+    if (neoKeyState[key])
     {
-      color = wheel(map(key, 0, neokey.pixels.numPixels(), 0, 255));
+      color = wheel(map(key, 0, SS_NEOKEY_COUNT, 0, 255));
     }
   }
   else if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING)
   {
-    color = wheel(map(key, 0, neokey.pixels.numPixels(), 0, 255));
-    tone = BaseToneFrequencies1[key];
+    color = wheel(map(key, 0, SS_NEOKEY_COUNT, 0, 255));
+    tone = BaseToneFrequencies1[key % 8];
   }
 
   if (tone > 0)
   {
-    int pitchModifier = map(attinySliderReading, 0, 1023, -200, 200);
+    int pitchModifier = map(neoSliderReading, 0, 1023, -200, 200);
     tone += pitchModifier;
   }
 
   // only play tone if button is pressed
-  tone = attinyButtonState ? tone : 0;
+  // tone = attinyButtonState ? tone : 0;
 
-  neokey.pixels.setPixelColor(key, color);
-  neokey.pixels.show();
+  neokey.setPixelColor(key, color);
+  neokey.show();
   ack1Tone(tone);
 
   return 0;
 }
 
+void neoSliderSetup()
+{
+  if (neoSliderInit)
+  {
+    log_w("NeoSlider already initialized");
+    return;
+  }
+
+  if (!neoSliderSs.begin(SS_NEOSLIDER_ADDR)) {
+    Serial.println(F("seesaw not found!"));
+    while(1) delay(10);
+  }
+
+  uint16_t pid;
+  uint8_t year, mon, day;
+
+  neoSliderSs.getProdDatecode(&pid, &year, &mon, &day);
+  Serial.print("seesaw found PID: ");
+  Serial.print(pid);
+  Serial.print(" datecode: ");
+  Serial.print(2000+year); Serial.print("/");
+  Serial.print(mon); Serial.print("/");
+  Serial.println(day);
+
+  if (pid != 5295) {
+    Serial.println(F("Wrong seesaw PID"));
+    while (1) delay(10);
+  }
+
+  if (!neoSliderPixels.begin(SS_NEOSLIDER_ADDR)){
+    Serial.println("seesaw pixels not found!");
+    while(1) delay(10);
+  }
+
+  Serial.println(F("seesaw started OK!"));
+
+  neoSliderPixels.setBrightness(255);  // half bright
+  neoSliderPixels.show(); // Initialize all pixels to 'off'
+
+  // if (!neoSliderSs.begin(SS_NEOSLIDER_ADDR) || !neoSliderPixels.begin(SS_NEOSLIDER_ADDR))
+  // {
+  //   log_e("Couldn't find NeoSlider seesaw on default address");
+  //   return;
+  // }
+
+  // uint32_t version = ((rotarySs.getVersion() >> 16) & 0xFFFF);
+  // if (version != 5295)
+  // {
+  //   log_e("Wrong seesaw firmware for slider loaded: %d", version);
+  //   return;
+  // }
+
+  // neoSliderPixels.setBrightness(255);
+  // neoSliderPixels.show();
+  neoSliderInit = true;
+
+  log_i("NeoSlider initialized");
+}
+
+void neoSliderUpdate()
+{
+  if (!neoSliderInit)
+  {
+    return;
+  }
+
+  neoSliderReading = neoSliderSs.analogRead(SS_NEOSLIDER_SLD_PIN);
+  for (uint8_t i = 0; i < neoSliderPixels.numPixels(); i++)
+  {
+    neoSliderPixels.setPixelColor(i, wheel(neoSliderReading / 4));
+  }
+
+  neoSliderPixels.show();
+}
+
 void rotarySetup()
 {
-  Serial.println("Looking for rotary seesaw!");
-
-  if (!rotarySs.begin(SS_ROTARY_ADDR) || !rotaryRgbLed.begin(SS_ROTARY_ADDR))
+  if (rotaryInit)
   {
-    Serial.println("Couldn't find rotary seesaw on default address");
-    while (1)
-      delay(10);
+    log_w("Rotary already initialized");
+    return;
   }
-  Serial.println("rotary seesaw started");
+
+  if (!rotarySs.begin(SS_ROTARY_ADDR) || !rotaryNeoPixel.begin(SS_ROTARY_ADDR))
+  {
+    log_e("Couldn't find rotary seesaw on default address");
+    return;
+  }
 
   uint32_t version = ((rotarySs.getVersion() >> 16) & 0xFFFF);
   if (version != 4991)
   {
-    Serial.print("Wrong firmware loaded? ");
-    Serial.println(version);
-    while (1)
-      delay(10);
+    log_e("Wrong seesaw firmware for rotary loaded: %d", version);
+    return;
   }
-  Serial.println("Found Product 4991");
 
-  rotaryRgbLed.setBrightness(20);
-  rotaryRgbLed.show();
+  rotaryNeoPixel.setBrightness(20);
+  rotaryNeoPixel.show();
   rotarySs.pinMode(SS_ROTARY_BTN_PIN, INPUT_PULLUP);
   rotaryEncPos = rotarySs.getEncoderPosition();
 
@@ -483,6 +606,8 @@ void rotarySetup()
   // rotarySs.enableEncoderInterrupt();
 
   rotaryInit = true;
+
+  log_i("Rotary initialized");
 }
 
 void rotaryUpdate()
@@ -498,14 +623,14 @@ void rotaryUpdate()
     {
       rotaryBtnIsPressed = true;
       rotaryLastBtnPress = millis();
-      neokeyChangeToggle();
+      // neokeyChangeToggle();
 
-      if (attinyButtonState)
-      {
-        ack1Tone(1000);
-        delay(100);
-        ack1Tone(0);
-      }
+      // if (attinyButtonState)
+      //{
+      ack1Tone(1000);
+      delay(100);
+      ack1Tone(0);
+      //}
     }
   }
   else
@@ -517,12 +642,13 @@ void rotaryUpdate()
   if (rotaryEncPos != newEncPos)
   {
     Serial.println(newEncPos);
-    rotaryRgbLed.setPixelColor(0, wheel((newEncPos * 5) & 0xFF)); // 3 rotations for full cycle with 24 step encoder?
-    rotaryRgbLed.show();
+    rotaryNeoPixel.setPixelColor(0, wheel((newEncPos * 5) & 0xFF)); // 3 rotations for full cycle with 24 step encoder?
+    rotaryNeoPixel.show();
     rotaryEncPos = newEncPos;
   }
 }
 
+/*
 void attinySetup()
 {
   if (!attinySs.begin())
@@ -589,6 +715,7 @@ void attinyUpdate()
     }
   }
 }
+*/
 
 void setup()
 {
@@ -596,16 +723,17 @@ void setup()
   while (!Serial)
     delay(10);
   delay(3000); // let I2C devices settle
-  Serial.println("Starting setup...");
+  log_i("Starting setup...");
 
   wifiSetup();
   mDnsSetup();
   otaSetup();
   restSetup();
 
-  neokeySetup();
+  neoKeySetup();
+  neoSliderSetup();
   rotarySetup();
-  attinySetup();
+  //attinySetup();
   delay(1000);
   ack1Setup();
 }
@@ -613,8 +741,9 @@ void setup()
 void loop()
 {
   ack1Update();
-  attinyUpdate();
-  neokeyUpdate();
+  // attinyUpdate();
+  neoKeyUpdate();
+  neoSliderUpdate();
   rotaryUpdate();
 
   ArduinoOTA.handle();
