@@ -60,30 +60,36 @@ bool ack1Display = false;
 const char *ack1BootMessage = "Hello world!";
 const char *ack1Message = "Dad loves Stella and Beau!";
 const int BaseToneFrequencies[8] = {261, 293, 329, 349, 392, 440, 493, 523}; // C4, D4, E4, F4, G4, A4, B4, C5
-const int BaseToneFrequencies1[4] = {261, 293, 329, 349};                    // C4, D4, E4, F4
-const int BaseToneFrequencies2[4] = {523, 587, 659, 698};                    // C5, D5, E5, F5
 
+bool neoKeyInit = false;
 Adafruit_NeoKey_1x4 neokeyArray[2] = {Adafruit_NeoKey_1x4(SS_NEOKEY1_ADDR), Adafruit_NeoKey_1x4(SS_NEOKEY2_ADDR)};
 Adafruit_MultiNeoKey1x4 neoKey((Adafruit_NeoKey_1x4 *)neokeyArray, 2, 1);
-bool neoKeyInit = false;
 NeoKey1x4Callback neoKeyCallback(keyEvent evt);
+unsigned long neoKeyLastPress = 0;
 // light/blinky mode state
-uint8_t neoKeyWheelPos = 0x00;
+int neoKeyPressedIndex = -1;
 bool neoKeyPixelState[SS_NEOKEY_COUNT];
 int neoKeyBlinkyDelay[SS_NEOKEY_COUNT]; // blinky state
-unsigned long neoKeyLastPress = 0;
 
 bool neoSliderInit = false;
 Adafruit_seesaw neoSliderSs;
 seesaw_NeoPixel neoSliderPixels = seesaw_NeoPixel(SS_NEOSLIDER_LED_COUNT, SS_NEOSLIDER_LED_PIN, NEO_GRB + NEO_KHZ800);
 uint16_t neoSliderReading = 0;
+uint16_t neoSliderLastReading = 0;
+// light/blinky mode state
+bool neoSliderPixelState[SS_NEOSLIDER_LED_COUNT];
+int neoSliderBlinkyDelay[SS_NEOSLIDER_LED_COUNT];
 
-Adafruit_seesaw rotarySs;
 bool rotaryInit = false;
+Adafruit_seesaw rotarySs;
 seesaw_NeoPixel rotaryNeoPixel = seesaw_NeoPixel(SS_ROTARY_LED_COUNT, SS_ROTARY_LED_PIN, NEO_GRB + NEO_KHZ800);
 int32_t rotaryEncPos;
-bool rotaryBtnIsPressed = false;
-unsigned long rotaryLastBtnPress = 0;
+uint8_t rotaryWheelPos;
+bool rotaryIsPressed = false;
+unsigned long rotaryLastPress = 0;
+// light/blinky mode state
+bool rotaryLedState;
+int rotaryBlinkyDelay;
 
 // Adafruit_seesaw attinySs;
 // bool attinyInit = false;
@@ -128,6 +134,14 @@ void changeMode()
       neoKeyPixelState[i] = false;
       neoKey.setPixelColor(i, 0x000000);
     }
+
+    for (int i = 0; i < SS_NEOSLIDER_LED_COUNT; i++)
+    {
+      neoSliderPixelState[i] = false;
+      neoSliderPixels.setPixelColor(i, 0x000000);
+    }
+
+    rotaryNeoPixel.setPixelColor(0, 0x000000);
   }
   else if (mode == Lights)
   {
@@ -138,6 +152,8 @@ void changeMode()
       neoKeyPixelState[i] = true;
       neoKey.setPixelColor(i, wheel(map(i, 0, SS_NEOKEY_COUNT, 0, 255)));
     }
+
+    rotaryNeoPixel.setPixelColor(0, wheel(rotaryWheelPos));
   }
   else if (mode == Blinky)
   {
@@ -147,11 +163,24 @@ void changeMode()
     {
       neoKeyPixelState[i] = true;
       neoKeyBlinkyDelay[i] = random(BASE_DELAY * 5, BASE_DELAY * 10);
-      neoKey.setPixelColor(i, wheel(neoKeyWheelPos + random(0, 16)));
+      neoKey.setPixelColor(i, wheel(rotaryWheelPos + random(0, 16)));
     }
+
+    for (int i = 0; i < SS_NEOSLIDER_LED_COUNT; i++)
+    {
+      neoKeyPixelState[i] = true;
+      neoKeyBlinkyDelay[i] = random(BASE_DELAY * 5, BASE_DELAY * 10);
+      neoKey.setPixelColor(i, wheel(rotaryWheelPos + random(0, 32)));
+    }
+
+    rotaryLedState = true;
+    rotaryBlinkyDelay = random(BASE_DELAY * 5, BASE_DELAY * 10);
+    rotaryNeoPixel.setPixelColor(0, wheel(rotaryWheelPos + random(0, 32)));
   }
 
   neoKey.show();
+  neoSliderPixels.show();
+  rotaryNeoPixel.show();
 }
 
 bool ack1Response(uint8_t *data, size_t len)
@@ -433,7 +462,29 @@ void neoKeyUpdate()
 
   neoKey.read();
 
-  if (mode == Mode::Blinky)
+  if (!display)
+  {
+    for (int i = 0; i < SS_NEOKEY_COUNT; i++)
+    {
+      neoKey.setPixelColor(i, 0x000000);
+    }
+    neoKey.show();
+    return;
+  }
+
+  if (mode == Mode::Lights)
+  {
+    // if (neoSliderReading != neoSliderLastReading)
+    // {
+    //   int onCount = map(neoSliderReading, 0, 1023, 0, SS_NEOKEY_COUNT);
+    //   for (int i = 0; i < SS_NEOKEY_COUNT; i++)
+    //   {
+    //     neoKey.setPixelColor(i, i < onCount ? wheel(map(i, 0, SS_NEOKEY_COUNT, 0, 255)) : 0);
+    //   }
+    //   neoKey.show();
+    // }
+  }
+  else if (mode == Mode::Blinky)
   {
     for (int i = 0; i < SS_NEOKEY_COUNT; i++)
     {
@@ -443,7 +494,7 @@ void neoKeyUpdate()
       neoKeyPixelState[i] = !neoKeyPixelState[i];
       neoKeyBlinkyDelay[i] = random(BASE_DELAY, BASE_DELAY * 2);
 
-      uint32_t color = neoKeyPixelState[i] ? wheel(neoKeyWheelPos + random(0, 16)) : 0;
+      uint32_t color = neoKeyPixelState[i] ? wheel(rotaryWheelPos + random(0, 16)) : 0;
       neoKey.setPixelColor(i, color);
     }
     neoKey.show();
@@ -457,9 +508,11 @@ NeoKey1x4Callback neoKeyCallback(keyEvent evt)
   uint8_t key = evt.bit.NUM;
   uint32_t color = 0x0; // default event to turn LED off
   uint16_t tone = 0x0;  // default event to turn tone off
+  neoKeyPressedIndex = -1;
 
   if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING)
   {
+    neoKeyPressedIndex = key;
     neoKeyLastPress = millis();
   }
 
@@ -467,7 +520,7 @@ NeoKey1x4Callback neoKeyCallback(keyEvent evt)
   {
     if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING)
     {
-      color = wheel(map(key, 0, SS_NEOKEY_COUNT, 0, 255)); // TODO: change to note color? TODO also eventually show note name on display
+      color = wheel(map(key, 0, SS_NEOKEY_COUNT, 0, 255)); // TODO also eventually show note name on display
       tone = BaseToneFrequencies[key % 8];
     }
   }
@@ -539,13 +592,58 @@ void neoSliderUpdate()
     return;
   }
 
-  neoSliderReading = neoSliderSs.analogRead(SS_NEOSLIDER_SLD_PIN);
-  for (uint8_t i = 0; i < neoSliderPixels.numPixels(); i++)
+  if (!display)
   {
-    neoSliderPixels.setPixelColor(i, wheel(neoSliderReading / 4));
+    for (int i = 0; i < SS_NEOSLIDER_LED_COUNT; i++)
+    {
+      neoSliderPixels.setPixelColor(i, 0x000000);
+    }
+    neoSliderPixels.show();
+    return;
   }
 
-  neoSliderPixels.show();
+  neoSliderLastReading = neoSliderReading;
+  neoSliderReading = 1023 - neoSliderSs.analogRead(SS_NEOSLIDER_SLD_PIN); // invert slider reading
+
+  if (mode == Mode::Music)
+  {
+    if (neoKeyPressedIndex >= 0)
+    {
+      uint32_t color = wheel(map(neoKeyPressedIndex, 0, SS_NEOKEY_COUNT, 0, 255));
+      for (uint8_t i = 0; i < neoSliderPixels.numPixels(); i++)
+      {
+        neoSliderPixels.setPixelColor(i, color);
+      }
+      neoSliderPixels.show();
+    }
+  }
+  else if (mode == Mode::Lights)
+  {
+    if (neoSliderReading != neoSliderLastReading)
+    {
+      int onCount = map(neoSliderReading, 0, 1023, 0, SS_NEOSLIDER_LED_COUNT);
+      for (uint8_t i = 0; i < neoSliderPixels.numPixels(); i++)
+      {
+        neoSliderPixels.setPixelColor(neoSliderPixels.numPixels() - i - 1, i < onCount ? wheel(map(i, 0, neoSliderPixels.numPixels(), 0, 255)) : 0);
+      }
+      neoSliderPixels.show();
+    }
+  }
+  else if (mode == Mode::Blinky)
+  {
+    for (int i = 0; i < SS_NEOSLIDER_LED_COUNT; i++)
+    {
+      if (--neoSliderBlinkyDelay[i] > 0)
+        continue;
+
+      neoSliderPixelState[i] = !neoSliderPixelState[i];
+      neoSliderBlinkyDelay[i] = random(BASE_DELAY, BASE_DELAY * 2);
+
+      uint32_t color = neoSliderPixelState[i] ? wheel(rotaryWheelPos + random(0, 16)) : 0;
+      neoSliderPixels.setPixelColor(i, color);
+    }
+    neoSliderPixels.show();
+  }
 }
 
 void rotarySetup()
@@ -591,12 +689,19 @@ void rotaryUpdate()
     return;
   }
 
+  if (!display)
+  {
+    rotaryNeoPixel.setPixelColor(0, 0x000000);
+    rotaryNeoPixel.show();
+    return;
+  }
+
   if (!rotarySs.digitalRead(SS_ROTARY_BTN_PIN))
   {
-    if (!rotaryBtnIsPressed && millis() - rotaryLastBtnPress > 100)
+    if (!rotaryIsPressed && millis() - rotaryLastPress > 100)
     {
-      rotaryBtnIsPressed = true;
-      rotaryLastBtnPress = millis();
+      rotaryIsPressed = true;
+      rotaryLastPress = millis();
       changeMode();
       ack1Tone(1000);
       delay(100);
@@ -605,17 +710,48 @@ void rotaryUpdate()
   }
   else
   {
-    rotaryBtnIsPressed = false;
+    rotaryIsPressed = false;
   }
 
   int32_t newEncPos = rotarySs.getEncoderPosition();
   if (rotaryEncPos != newEncPos)
   {
     log_d(newEncPos);
-    neoKeyWheelPos = (newEncPos * 5) & 0xFF;
-    rotaryNeoPixel.setPixelColor(0, wheel(neoKeyWheelPos)); // 3 rotations for full cycle with 24 step encoder?
+    rotaryWheelPos = (newEncPos * 5) & 0xFF;
+    rotaryNeoPixel.setPixelColor(0, wheel(rotaryWheelPos)); // 3 rotations for full cycle with 24 step encoder?
     rotaryNeoPixel.show();
     rotaryEncPos = newEncPos;
+  }
+
+  if (mode == Mode::Music)
+  {
+    if (neoKeyPressedIndex >= 0)
+    {
+      uint32_t color = wheel(map(neoKeyPressedIndex, 0, SS_NEOKEY_COUNT, 0, 255));
+      rotaryNeoPixel.setPixelColor(0, color);
+      rotaryNeoPixel.show();
+    }
+  }
+  else if (mode == Mode::Lights)
+  {
+    if (neoKeyPressedIndex >= 0)
+    {
+      uint32_t color = wheel(map(neoKeyPressedIndex, 0, SS_NEOKEY_COUNT, 0, 255));
+      rotaryNeoPixel.setPixelColor(0, color);
+      rotaryNeoPixel.show();
+    }
+  }
+  else if (mode == Mode::Blinky)
+  {
+    if (!rotaryIsPressed && --rotaryBlinkyDelay <= 0)
+    {
+      rotaryLedState = !rotaryLedState;
+      rotaryBlinkyDelay = random(BASE_DELAY, BASE_DELAY * 2);
+
+      uint32_t color = rotaryLedState ? wheel(rotaryWheelPos + random(0, 16)) : 0;
+      rotaryNeoPixel.setPixelColor(0, color);
+      rotaryNeoPixel.show();
+    }
   }
 }
 
