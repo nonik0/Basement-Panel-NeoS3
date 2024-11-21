@@ -8,13 +8,11 @@
 
 #include "secrets.h"
 
-const char *HOSTNAME = "Basement-Panel-Xiao";
-const char *hostname = "Basement-Panel-Xiao";
+const char *HOSTNAME = "Basement-Panel-NeoS3";
+const char *hostname = "basement-panel-neos3";
 
 WebServer restServer(80);
 extern bool display;
-//extern bool attinyButtonState;
-//extern uint16_t attinySliderReading;
 extern void ack1Wake();
 extern void ack1Clear();
 
@@ -142,26 +140,11 @@ void restDisplay()
   restServer.send(200, "text/plain", display ? "on" : "off");
 }
 
-// void restButton()
-// {
-//   restServer.send(200, "text/plain", attinyButtonState ? "on" : "off");
-// }
-
-// void restSlider()
-// {
-//   bool sliderNotZero = attinySliderReading != 0;
-
-//   String output = "Value: " + String(attinySliderReading) + (sliderNotZero ? "" : " (no slider detected)");
-
-//   restServer.send(200, "text/plain", output);
-// }
 
 void restSetup()
 {
   restServer.on("/", restIndex);
   restServer.on("/display", restDisplay);
-  // restServer.on("/button", restButton);
-  // restServer.on("/slider", restSlider);
   restServer.begin();
 
   log_i("REST server running");

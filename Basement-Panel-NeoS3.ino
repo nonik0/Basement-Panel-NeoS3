@@ -1,9 +1,12 @@
 #include <Arduino.h>
+#include <Adafruit_LEDBackpack.h>
 #include <Adafruit_seesaw.h>
 #include <Adafruit_NeoKey_1x4.h>
 #include <seesaw_neopixel.h>
 #include <SPI.h>
+#include <tuple>
 
+#include "maze7x7.h"
 #include "music.h"
 #include "services.hpp"
 
@@ -23,6 +26,9 @@
 #define ACK1_EEPROM_READ_CMD 0x80
 #define ACK1_EEPROM_WRITE_CMD 0x81
 
+#define ALPHANUM_ADDR 0x70
+#define ALPHANUM_CHAR_COUNT 4
+
 #define SS_NEOKEY1_ADDR 0x30
 #define SS_NEOKEY2_ADDR 0x31
 #define SS_NEOKEY_COUNT 4 * 2
@@ -38,12 +44,22 @@
 #define SS_NEOSLIDER_LED_COUNT 4
 
 #define DELAY_MS 10
-#define BASE_DELAY 20
+#define BASE_DELAY 40
 
-// #define SS_ATTINY_ADDR 0x49
-// #define SS_ATTINY_LED_PIN 10
-// #define SS_ATTINY_BTN_PIN 15
-// #define SS_ATTINY_SLD_PIN 16
+const std::tuple<uint8_t, uint16_t> AlphaNumLoopPath[] = {
+    {0, ALPHANUM_SEG_A}, {1, ALPHANUM_SEG_A}, {2, ALPHANUM_SEG_A}, {3, ALPHANUM_SEG_A}, {3, ALPHANUM_SEG_B}, {3, ALPHANUM_SEG_C}, {3, ALPHANUM_SEG_D}, {2, ALPHANUM_SEG_D}, {1, ALPHANUM_SEG_D}, {0, ALPHANUM_SEG_D}, {0, ALPHANUM_SEG_E}, {0, ALPHANUM_SEG_F}};
+const int AlphaNumLoopPathLength = sizeof(AlphaNumLoopPath) / sizeof(AlphaNumLoopPath[0]);
+
+const std::tuple<uint8_t, uint16_t> AlphaNumFigure8Path[] = {
+    {0, ALPHANUM_SEG_A}, {1, ALPHANUM_SEG_H}, {1, ALPHANUM_SEG_N}, {2, ALPHANUM_SEG_D}, {3, ALPHANUM_SEG_D}, {3, ALPHANUM_SEG_C}, {3, ALPHANUM_SEG_B}, {3, ALPHANUM_SEG_A}, {2, ALPHANUM_SEG_G2}, {2, ALPHANUM_SEG_K}, {1, ALPHANUM_SEG_L}, {0, ALPHANUM_SEG_D}, {0, ALPHANUM_SEG_E}, {0, ALPHANUM_SEG_F}};
+const int AlphaNumFigure8PathLength = sizeof(AlphaNumFigure8Path) / sizeof(AlphaNumFigure8Path[0]);
+
+const std::tuple<uint8_t, uint16_t> AlphaNumStarPath[] = { {0, ALPHANUM_SEG_J}, {0, ALPHANUM_SEG_K}, {0, ALPHANUM_SEG_G2}, {0, ALPHANUM_SEG_M}, {0, ALPHANUM_SEG_L}, {0, ALPHANUM_SEG_G1}, {0, ALPHANUM_SEG_J}, {0, ALPHANUM_SEG_H} };
+const int AlphaNumStarPathLength = sizeof(AlphaNumStarPath) / sizeof(AlphaNumStarPath[0]); 
+
+const std::tuple<uint8_t, uint16_t> *AlphaNumPaths[] = {AlphaNumLoopPath, AlphaNumFigure8Path, AlphaNumStarPath};
+int AlphaNumPathLengths[] = {AlphaNumLoopPathLength, AlphaNumFigure8PathLength, AlphaNumStarPathLength};
+int AlphaNumPathCount = sizeof(AlphaNumPaths) / sizeof(AlphaNumPaths[0]);
 
 enum Mode
 {
@@ -52,6 +68,8 @@ enum Mode
   Blinky,
 };
 
+MazeRunnerTaskHandler mazeRunner;
+
 bool display = true;
 Mode mode = Mode::Music;
 
@@ -59,13 +77,23 @@ bool ack1Init = false;
 bool ack1Display = false;
 const char *ack1BootMessage = "Hello world!";
 const char *ack1Message = "Dad loves Stella and Beau!";
+const char *BaseToneNames[8] = {"C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"};
 const int BaseToneFrequencies[8] = {261, 293, 329, 349, 392, 440, 493, 523}; // C4, D4, E4, F4, G4, A4, B4, C5
+
+bool alphaNumInit = false;
+Adafruit_AlphaNum4 alphaNum = Adafruit_AlphaNum4();
+bool alphaNumUpdated = false;
+char alphaNumBuffer[ALPHANUM_CHAR_COUNT] = {' ', ' ', ' ', ' '};
+int alphaNumBlinkyDelay;
+int alphaNumBlinkyIndex;
+int alphaNumPathIndex;
 
 bool neoKeyInit = false;
 Adafruit_NeoKey_1x4 neokeyArray[2] = {Adafruit_NeoKey_1x4(SS_NEOKEY1_ADDR), Adafruit_NeoKey_1x4(SS_NEOKEY2_ADDR)};
 Adafruit_MultiNeoKey1x4 neoKey((Adafruit_NeoKey_1x4 *)neokeyArray, 2, 1);
 NeoKey1x4Callback neoKeyCallback(keyEvent evt);
 unsigned long neoKeyLastPress = 0;
+unsigned long neoKeyLastRelease = 0;
 // light/blinky mode state
 int neoKeyPressedIndex = -1;
 bool neoKeyPixelState[SS_NEOKEY_COUNT];
@@ -91,15 +119,7 @@ unsigned long rotaryLastPress = 0;
 bool rotaryLedState;
 int rotaryBlinkyDelay;
 
-// Adafruit_seesaw attinySs;
-// bool attinyInit = false;
-// bool attinyButtonState = false;
-// unsigned long attinyLastSliderRead = 0;
-// unsigned long attinyLastSliderChange = 0;
-// uint16_t attinySliderReading = 0;
-// unsigned long lastLedUpdate = 0;
-
-uint32_t wheel(byte wheelPos)
+uint32_t wheel(uint8_t wheelPos)
 {
   wheelPos = 255 - wheelPos;
   if (wheelPos < 85)
@@ -129,6 +149,8 @@ void changeMode()
   {
     log_i("Switching to Music mode");
 
+    alphaNum.clear();
+
     for (int i = 0; i < SS_NEOKEY_COUNT; i++)
     {
       neoKeyPixelState[i] = false;
@@ -147,6 +169,8 @@ void changeMode()
   {
     log_i("Switching to Lights mode");
 
+    alphaNum.clear();
+
     for (int i = 0; i < SS_NEOKEY_COUNT; i++)
     {
       neoKeyPixelState[i] = true;
@@ -158,6 +182,12 @@ void changeMode()
   else if (mode == Blinky)
   {
     log_i("Switching to Blinky mode");
+
+    alphaNum.clear();
+
+    alphaNumPathIndex = random(0, AlphaNumPathCount);
+    alphaNumBlinkyDelay = 0;
+    alphaNumBlinkyIndex = random(0, AlphaNumPathLengths[alphaNumPathIndex]);
 
     for (int i = 0; i < SS_NEOKEY_COUNT; i++)
     {
@@ -178,6 +208,7 @@ void changeMode()
     rotaryNeoPixel.setPixelColor(0, wheel(rotaryWheelPos + random(0, 32)));
   }
 
+  alphaNum.writeDisplay();
   neoKey.show();
   neoSliderPixels.show();
   rotaryNeoPixel.show();
@@ -310,7 +341,7 @@ void ack1Clear()
 {
   // one clear only stops scroll, second clear clears display (not sure why?)
   ack1Command(ACK1_LEDCLR_CMD);
-  // ack1Command(ACK1_LEDCLR_CMD);
+  ack1Command(ACK1_LEDCLR_CMD);
 }
 
 void ack1Tone(uint16_t freq)
@@ -410,10 +441,117 @@ void ack1Update()
   }
   else if (!display && ack1Display)
   {
-    // first stop, second clears
-    ack1Clear();
     ack1Clear();
     ack1Display = false;
+  }
+}
+
+void alphaNumSetup()
+{
+  if (alphaNumInit)
+  {
+    log_w("AlphaNum already initialized");
+    return;
+  }
+
+  if (!alphaNum.begin(ALPHANUM_ADDR))
+  {
+    log_e("Couldn't find AlphaNum seesaw on default address");
+    return;
+  }
+
+  alphaNum.writeDigitRaw(3, 0x0);
+  alphaNum.writeDigitRaw(0, 0xFFFF);
+  alphaNum.writeDisplay();
+  delay(200);
+  alphaNum.writeDigitRaw(0, 0x0);
+  alphaNum.writeDigitRaw(1, 0xFFFF);
+  alphaNum.writeDisplay();
+  delay(200);
+  alphaNum.writeDigitRaw(1, 0x0);
+  alphaNum.writeDigitRaw(2, 0xFFFF);
+  alphaNum.writeDisplay();
+  delay(200);
+  alphaNum.writeDigitRaw(2, 0x0);
+  alphaNum.writeDigitRaw(3, 0xFFFF);
+  alphaNum.writeDisplay();
+  delay(200);
+
+  alphaNum.clear();
+  alphaNum.writeDisplay();
+
+  alphaNumInit = true;
+  log_i("AlphaNum initialized");
+}
+
+void alphaNumUpdate()
+{
+  if (!alphaNumInit)
+  {
+    return;
+  }
+
+  if (!display)
+  {
+    alphaNum.clear();
+    alphaNum.writeDisplay();
+    return;
+  }
+
+  if (mode == Mode::Music)
+  {
+    if (neoKeyPressedIndex != -1)
+    {
+      if (!alphaNumUpdated)
+      {
+        // shift tone name from the right into buffer
+        const char *toneName = BaseToneNames[neoKeyPressedIndex % 8];
+        alphaNumBuffer[0] = alphaNumBuffer[1];
+        alphaNumBuffer[1] = alphaNumBuffer[2];
+        alphaNumBuffer[2] = alphaNumBuffer[3];
+        alphaNumBuffer[3] = toneName[0]; // ignore the note letter for now
+        alphaNum.writeDigitAscii(0, alphaNumBuffer[0]);
+        alphaNum.writeDigitAscii(1, alphaNumBuffer[1]);
+        alphaNum.writeDigitAscii(2, alphaNumBuffer[2]);
+        alphaNum.writeDigitAscii(3, alphaNumBuffer[3]);
+        alphaNum.writeDisplay();
+        alphaNumUpdated = true;
+      }
+    }
+    else if (neoKeyPressedIndex == -1)
+    {
+      if (alphaNumUpdated)
+      {
+        alphaNumUpdated = false;
+      }
+    }
+  }
+  else if (mode == Mode::Lights)
+  {
+    // alphaNum.print(neoSliderReading);
+    // alphaNum.writeDisplay();
+  }
+  else if (mode == Mode::Blinky)
+  {
+    if (--alphaNumBlinkyDelay > 0)
+      return;
+
+    alphaNum.clear();
+    alphaNumBuffer[3] = alphaNumBuffer[2] = alphaNumBuffer[1] = alphaNumBuffer[0] = 0;
+    for (int i = 0; i < 3; i++)
+    {
+      auto index = (alphaNumBlinkyIndex + i) % AlphaNumPathLengths[alphaNumPathIndex];
+      const auto [digit, bitmask] = AlphaNumPaths[alphaNumPathIndex][index];
+      alphaNumBuffer[digit] |= bitmask;
+    }
+    alphaNum.writeDigitRaw(0, alphaNumBuffer[0]);
+    alphaNum.writeDigitRaw(1, alphaNumBuffer[1]);
+    alphaNum.writeDigitRaw(2, alphaNumBuffer[2]);
+    alphaNum.writeDigitRaw(3, alphaNumBuffer[3]);
+    alphaNum.writeDisplay();
+
+    alphaNumBlinkyIndex = (alphaNumBlinkyIndex + 1) % AlphaNumPathLengths[alphaNumPathIndex];
+    alphaNumBlinkyDelay = 6;
   }
 }
 
@@ -472,17 +610,27 @@ void neoKeyUpdate()
     return;
   }
 
+  // debounce after key press
+  if (millis() - neoKeyLastPress < 100 || millis() - neoKeyLastRelease < 100)
+  {
+    return;
+  }
+
   if (mode == Mode::Lights)
   {
-    // if (neoSliderReading != neoSliderLastReading)
-    // {
-    //   int onCount = map(neoSliderReading, 0, 1023, 0, SS_NEOKEY_COUNT);
-    //   for (int i = 0; i < SS_NEOKEY_COUNT; i++)
-    //   {
-    //     neoKey.setPixelColor(i, i < onCount ? wheel(map(i, 0, SS_NEOKEY_COUNT, 0, 255)) : 0);
-    //   }
-    //   neoKey.show();
-    // }
+    if (neoSliderReading != neoSliderLastReading)
+    {
+      // int onCount = map(neoSliderReading, 0, 1023, 0, SS_NEOKEY_COUNT);
+      // for (int i = 0; i < SS_NEOKEY_COUNT; i++)
+      // {
+      //   neoKey.setPixelColor(i, i < onCount ? wheel(map(i, 0, SS_NEOKEY_COUNT, 0, 255)) : 0);
+      // }
+      // neoKey.show();
+      auto keyIndex = map(neoSliderReading, 0, 1023, 0, SS_NEOKEY_COUNT);
+      auto color = neoSliderReading > neoSliderLastReading ? wheel(map(keyIndex, 0, SS_NEOKEY_COUNT, 0, 255)) : 0;
+      neoKey.setPixelColor(keyIndex, color);
+      neoKey.show();
+    }
   }
   else if (mode == Mode::Blinky)
   {
@@ -514,6 +662,10 @@ NeoKey1x4Callback neoKeyCallback(keyEvent evt)
   {
     neoKeyPressedIndex = key;
     neoKeyLastPress = millis();
+  }
+  else if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_FALLING)
+  {
+    neoKeyLastRelease = millis();
   }
 
   if (mode == Mode::Music)
@@ -716,7 +868,7 @@ void rotaryUpdate()
   int32_t newEncPos = rotarySs.getEncoderPosition();
   if (rotaryEncPos != newEncPos)
   {
-    log_d(newEncPos);
+    //log_d(newEncPos);
     rotaryWheelPos = (newEncPos * 5) & 0xFF;
     rotaryNeoPixel.setPixelColor(0, wheel(rotaryWheelPos)); // 3 rotations for full cycle with 24 step encoder?
     rotaryNeoPixel.show();
@@ -755,80 +907,9 @@ void rotaryUpdate()
   }
 }
 
-/*
-void attinySetup()
-{
-  if (!attinySs.begin())
-  {
-    Serial.println("attiny seesaw not found!");
-    while (1)
-      delay(10);
-  }
-  Serial.println(F("attiny seesaw started OK!"));
-
-  attinySs.pinMode(SS_ATTINY_LED_PIN, OUTPUT);
-  attinySs.pinMode(SS_ATTINY_BTN_PIN, INPUT_PULLDOWN);
-  // analog setup not needed?
-
-  attinyInit = true;
-}
-
-void attinyUpdate()
-{
-  if (!attinyInit)
-  {
-    return;
-  }
-
-  // check if button state has changed
-  bool newButtonState = attinySs.digitalRead(SS_ATTINY_BTN_PIN);
-  if (newButtonState != attinyButtonState)
-  {
-    attinyButtonState = newButtonState;
-    attinySs.digitalWrite(SS_ATTINY_LED_PIN, attinyButtonState);
-  }
-
-  // read slider, update LED and brightness if changed
-  if (millis() - attinyLastSliderRead > 100)
-  {
-    attinyLastSliderRead = millis();
-    uint16_t newReading = attinySs.analogRead(SS_ATTINY_SLD_PIN);
-
-    int delta = abs(newReading - attinySliderReading);
-    if (delta > 10 && delta < 768) // ignore small and large changes
-    {
-      attinyLastSliderChange = millis();
-      attinySliderReading = newReading;
-
-      neokey.pixels.setBrightness(map(attinySliderReading, 0, 1024, 0, 255));
-      neokey.pixels.show();
-
-      rotaryRgbLed.setBrightness(map(attinySliderReading, 0, 1024, 0, 100));
-      rotaryRgbLed.show();
-
-      attinySs.digitalWrite(SS_ATTINY_LED_PIN, attinySliderReading < 512);
-
-      if (!neokeyToggle)
-      {
-        for (uint16_t i = 0; i < neokey.pixels.numPixels(); i++)
-        {
-          uint32_t color = attinySliderReading > (1024 / neokey.pixels.numPixels()) * i
-                               ? wheel(map(i, 0, neokey.pixels.numPixels(), 0, 255))
-                               : 0x0;
-          neokey.pixels.setPixelColor(i, color);
-          neokey.pixels.show();
-        }
-      }
-    }
-  }
-}
-*/
-
 void setup()
 {
   Serial.begin(115200);
-  while (!Serial)
-    delay(10);
   delay(3000); // let I2C devices settle
   log_i("Starting setup...");
 
@@ -837,21 +918,30 @@ void setup()
   otaSetup();
   restSetup();
 
+  alphaNumSetup();
   neoKeySetup();
   neoSliderSetup();
   rotarySetup();
-  // attinySetup();
   delay(1000);
-  ack1Setup();
+  ack1Setup(); // slow to initialize
+
+  mazeRunner.createTask();
+}
+
+void update()
+{
+  // TODO: consolidate all update functions into one (for kids button stuff)
 }
 
 void loop()
 {
   ack1Update();
-  // attinyUpdate();
+  alphaNumUpdate();
   neoKeyUpdate();
   neoSliderUpdate();
   rotaryUpdate();
+
+  update();
 
   ArduinoOTA.handle();
   restServer.handleClient();
