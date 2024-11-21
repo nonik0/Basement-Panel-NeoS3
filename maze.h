@@ -185,7 +185,7 @@ void MazeRunner::moveRunner()
   }
   catch (exception &e)
   {
-    //log_e("MazeRunnerMove Exception: %s", e.what());
+    log_e("MazeRunnerMove Exception: %s", e.what());
   }
 }
 
