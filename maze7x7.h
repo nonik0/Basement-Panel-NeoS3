@@ -2,7 +2,7 @@
 #include <Adafruit_NeoPixel.h>
 #include <Arduino.h>
 
-#include "maze.h"
+#include "mazeRunner.h"
 #include "task_handler.h"
 
 extern bool display;
@@ -10,7 +10,7 @@ extern bool display;
 class MazeRunnerTaskHandler : public TaskHandler
 {
 private:
-    const int DELAY_MS = 250;
+    const int MAZE_DELAY_MS = 250;
     const uint32_t BLACK = Adafruit_NeoPixel::Color(0, 0, 0);
     const uint32_t RED = Adafruit_NeoPixel::Color(0xFF, 0, 0);
     const uint32_t ORANGE = Adafruit_NeoPixel::Color(0xFF, 0x44, 0);
@@ -78,6 +78,6 @@ void MazeRunnerTaskHandler::task(void *parameters)
         //digitalWrite(EN_PIN, display); // turns off LDO
         _mazeRunner->update();
         _pixels.show();
-        delay(DELAY_MS);
+        delay(MAZE_DELAY_MS);
     }
 }
