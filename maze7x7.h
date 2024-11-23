@@ -15,6 +15,7 @@ private:
     const uint32_t RED = Adafruit_NeoPixel::Color(0xFF, 0, 0);
     const uint32_t ORANGE = Adafruit_NeoPixel::Color(0xEE, 0x44, 0);
     const uint32_t YELLOWGREEN = Adafruit_NeoPixel::Color(0xCC, 0xFF, 0);
+    const uint32_t WARMWHITE = Adafruit_NeoPixel::Color(0xCC, 0x33, 0x33);
     static const uint8_t EN_PIN = 39;
     static const uint8_t DATA_PIN = 16;
     static const int WIDTH = 7;

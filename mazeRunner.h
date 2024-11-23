@@ -57,13 +57,15 @@ private:
   int _width;
   int _height;
 
-  uint32_t _offColor;
-  uint32_t _wallColor;
-  uint32_t _runnerColor;
   uint32_t _exitColor;
+  uint32_t _offColor;
+  uint32_t _runnerColor;
+  uint32_t _sentryColor;
+  uint32_t _wallColor;
 
   bool **_maze;
   Location _runnerLoc = {-1, -1};
+  Location _sentryLoc = {-1, -1};
   Location _exitLoc = {-1, -1};
   int _distanceToExit = -1;
 
