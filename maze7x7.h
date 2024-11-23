@@ -15,7 +15,7 @@ private:
     const uint32_t RED = Adafruit_NeoPixel::Color(0xFF, 0, 0);
     const uint32_t ORANGE = Adafruit_NeoPixel::Color(0xEE, 0x44, 0);
     const uint32_t YELLOWGREEN = Adafruit_NeoPixel::Color(0xCC, 0xFF, 0);
-    const uint32_t WARMWHITE = Adafruit_NeoPixel::Color(0xCC, 0x33, 0x33);
+    const uint32_t WARMWHITE = Adafruit_NeoPixel::Color(0xDD, 0xCC, 0x77);
     static const uint8_t EN_PIN = 39;
     static const uint8_t DATA_PIN = 16;
     static const int WIDTH = 7;
@@ -55,10 +55,11 @@ bool MazeRunnerTaskHandler::createTask()
     _mazeRunner = new MazeRunner(
         WIDTH,
         HEIGHT,
-        BLACK,
-        ORANGE,
-        YELLOWGREEN,
-        RED,
+        BLACK,       // off
+        ORANGE,      // wall
+        YELLOWGREEN, // runner
+        RED,         // sentry
+        WARMWHITE,   // exit
         [this](int x, int y, uint32_t c)
         { _pixels.setPixelColor(y * WIDTH + x, c); });
 
@@ -76,7 +77,7 @@ void MazeRunnerTaskHandler::task(void *parameters)
 
     while (1)
     {
-        digitalWrite(EN_PIN, display); // turns off LDO
+        //digitalWrite(EN_PIN, display); // turns off LDO
         _mazeRunner->update();
         _pixels.show();
         delay(MAZE_DELAY_MS);

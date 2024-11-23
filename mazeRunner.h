@@ -11,24 +11,18 @@
 
 using namespace std;
 
-struct Direction
+struct Coordinate
 {
   int x;
   int y;
 };
 
-struct Location
-{
-  int x;
-  int y;
-};
-
-bool operator==(const Location &lhs, const Location &rhs)
+bool operator==(const Coordinate &lhs, const Coordinate &rhs)
 {
   return lhs.x == rhs.x && lhs.y == rhs.y;
 }
 
-bool operator!=(const Location &lhs, const Location &rhs)
+bool operator!=(const Coordinate &lhs, const Coordinate &rhs)
 {
   return !(lhs == rhs);
 }
@@ -36,14 +30,17 @@ bool operator!=(const Location &lhs, const Location &rhs)
 namespace std
 {
   template <>
-  struct hash<Location>
+  struct hash<Coordinate>
   {
-    size_t operator()(const Location &loc) const
+    size_t operator()(const Coordinate &loc) const
     {
       return hash<int>()(loc.x) ^ hash<int>()(loc.y);
     }
   };
 }
+
+using Location = Coordinate;
+using Direction = Coordinate;
 
 const Direction Left = {-1, 0};
 const Direction Right = {1, 0};
@@ -57,33 +54,41 @@ private:
   int _width;
   int _height;
 
-  uint32_t _exitColor;
   uint32_t _offColor;
-  uint32_t _runnerColor;
-  uint32_t _sentryColor;
   uint32_t _wallColor;
 
-  bool **_maze;
+  uint32_t _runnerColor;
   Location _runnerLoc = {-1, -1};
+  vector<Location> _runnerPath;
+  int _runnerDistToExit = -1;
+
+  uint32_t _sentryColor;
   Location _sentryLoc = {-1, -1};
+
+  uint32_t _exitColor;
   Location _exitLoc = {-1, -1};
-  int _distanceToExit = -1;
+
+  bool **_mazeWalls;
 
   // function callback to draw pixels
   std::function<void(int, int, uint32_t)> _drawPixel;
 
 public:
-  MazeRunner(int width, int height, uint32_t offColor, uint32_t wallColor, uint32_t runnerColor, uint32_t exitColor, std::function<void(int, int, uint32_t)> drawPixel);
+  MazeRunner(int width, int height, uint32_t offColor, uint32_t wallColor, uint32_t runnerColor, uint32_t sentryColor, uint32_t exitColor, std::function<void(int, int, uint32_t)> drawPixel);
+  MazeRunner(int width, int height, uint32_t offColor, uint32_t wallColor, uint32_t runnerColor, uint32_t exitColor, std::function<void(int, int, uint32_t)> drawPixel)
+      : MazeRunner(width, height, offColor, wallColor, runnerColor, offColor, exitColor, drawPixel) {}
 
   void init();
   void update();
 
 private:
   void moveRunner();
+  void moveSentry();
   void drawMaze();
 
   void generateMaze();
   void placeRunner();
+  void placeSentry();
   void placeExit();
 
   vector<Location> findPathDfs(Location startLoc, Location endLoc, int maxDistToEnd = -1);
@@ -98,7 +103,7 @@ private:
   int getAdjacentWallAndBorderCount(Location loc);
 };
 
-MazeRunner::MazeRunner(int width, int height, uint32_t offColor, uint32_t wallColor, uint32_t runnerColor, uint32_t exitColor, std::function<void(int, int, uint32_t)> drawPixel)
+MazeRunner::MazeRunner(int width, int height, uint32_t offColor, uint32_t wallColor, uint32_t runnerColor, uint32_t sentryColor, uint32_t exitColor, std::function<void(int, int, uint32_t)> drawPixel)
 {
   _width = width;
   _height = height;
@@ -108,10 +113,10 @@ MazeRunner::MazeRunner(int width, int height, uint32_t offColor, uint32_t wallCo
   _exitColor = exitColor;
   _drawPixel = drawPixel;
 
-  _maze = new bool *[_height];
+  _mazeWalls = new bool *[_height];
   for (int i = 0; i < _height; i++)
   {
-    _maze[i] = new bool[_width];
+    _mazeWalls[i] = new bool[_width];
   }
 }
 
@@ -155,40 +160,55 @@ void MazeRunner::moveRunner()
     init();
     return;
   }
+  else if (_runnerLoc == _sentryLoc)
+  {
+    log_d("Runner caught by sentry");
+    init();
+    return;
+  }
 
   try
   {
     // vector<Location> path = findPathBfs(runnerLoc, exitLoc);
-    vector<Location> path = findPathDfs(_runnerLoc, _exitLoc, _distanceToExit);
 
-    if (path.size() < 2)
+    if (_runnerPath.size() < 2)
+    {
+      _runnerPath = findPathDfs(_runnerLoc, _exitLoc, _runnerDistToExit);
+    }
+
+    if (_runnerPath.size() < 2)
     {
       log_d("No path found from (%d,%d) to (%d,%d)", _runnerLoc.x, _runnerLoc.y, _exitLoc.x, _exitLoc.y);
       return;
     }
 
-    if (_runnerLoc != path[0])
+    if (_runnerLoc != _runnerPath[0])
     {
-      log_d("Runner is not at expected location (%d,%d)", path[0].x, path[0].y);
+      log_d("Runner is not at expected location (%d,%d)", _runnerPath[0].x, _runnerPath[0].y);
       return;
     }
 
-    int stepDistance = abs(path[1].x - path[0].x) + abs(path[1].y - path[0].y);
+    int stepDistance = abs(_runnerPath[1].x - _runnerPath[0].x) + abs(_runnerPath[1].y - _runnerPath[0].y);
     if (stepDistance != 1)
     {
-      log_d("First step is not one step: (%d,%d) to (%d,%d)", path[0].x, path[0].y, path[1].x, path[1].y);
+      log_d("First step is not one step: (%d,%d) to (%d,%d)", _runnerPath[0].x, _runnerPath[0].y, _runnerPath[1].x, _runnerPath[1].y);
       return;
     }
 
-    _runnerLoc = path[1];
-    _distanceToExit = path.size() - 2; // -1 for included start, -1 for next step
+    _runnerPath.erase(_runnerPath.begin());
+    _runnerLoc = _runnerPath[0];
+    _runnerDistToExit = _runnerPath.size() - 1; // -1 for included start
 
-    log_d("Moved runner from (%d,%d) to (%d,%d) with dist %d", path[0].x, path[0].y, path[1].x, path[1].y, _distanceToExit);
+    log_d("Moved runner from (%d,%d) to (%d,%d) with dist %d", _runnerPath[0].x, _runnerPath[0].y, _runnerPath[1].x, _runnerPath[1].y, _runnerDistToExit);
   }
   catch (exception &e)
   {
     log_e("MazeRunnerMove Exception: %s", e.what());
   }
+}
+
+void MazeRunner::moveSentry()
+{
 }
 
 void MazeRunner::drawMaze()
@@ -197,12 +217,13 @@ void MazeRunner::drawMaze()
   {
     for (int x = 0; x < _width; x++)
     {
-      _drawPixel(x, y, _maze[y][x] ? _wallColor : _offColor);
+      _drawPixel(x, y, _mazeWalls[y][x] ? _wallColor : _offColor);
     }
   }
 
   _drawPixel(_exitLoc.x, _exitLoc.y, _exitColor);
   _drawPixel(_runnerLoc.x, _runnerLoc.y, _runnerColor);
+  _drawPixel(_sentryLoc.x, _sentryLoc.y, _sentryColor);
 }
 
 void MazeRunner::generateMaze()
@@ -214,7 +235,7 @@ void MazeRunner::generateMaze()
   {
     for (int x = 0; x < _width; x++)
     {
-      _maze[y][x] = true;
+      _mazeWalls[y][x] = true;
     }
   }
 
@@ -223,7 +244,7 @@ void MazeRunner::generateMaze()
   if (_exitLoc.x == -1 || _exitLoc.y == -1)
   {
     int edge = random(4);
-    int x = random(0,_width);
+    int x = random(0, _width);
     int y = random(_height);
     start = {x, y};
   }
@@ -231,7 +252,7 @@ void MazeRunner::generateMaze()
   {
     start = _exitLoc;
   }
-  _maze[start.y][start.x] = false;
+  _mazeWalls[start.y][start.x] = false;
 
   // create traversal stack with starting point
   stack<Location> path = stack<Location>();
@@ -253,7 +274,7 @@ void MazeRunner::generateMaze()
       Location nextLoc = {cur.x + randSteps[i].x, cur.y + randSteps[i].y};
       if (isInMazeBounds(nextLoc) && isWall(nextLoc) && getAdjacentWallAndBorderCount(nextLoc) >= 3)
       {
-        _maze[nextLoc.y][nextLoc.x] = false;
+        _mazeWalls[nextLoc.y][nextLoc.x] = false;
         path.push(nextLoc);
         foundPath = true;
         break;
@@ -290,6 +311,26 @@ void MazeRunner::placeRunner()
     attempts++;
   }
   log_d("Placing runner at (%d,%d) after %d attempts", _runnerLoc.x, _runnerLoc.y, attempts);
+}
+
+void MazeRunner::placeSentry()
+{
+  _sentryLoc = {-1, -1};
+
+  int attempts = 0;
+  while (_sentryLoc.x == -1)
+  {
+    int x = random(_width);
+    int y = random(_height);
+    int distance = abs(x - _runnerLoc.x) + abs(y - _runnerLoc.y);
+    int minDistance = max(0, (_width + _height) / 2 - (attempts / 10));
+    if (!isWall(x, y) && distance > minDistance)
+    {
+      _sentryLoc = {x, y};
+    }
+    attempts++;
+  }
+  log_d("Placing sentry at (%d,%d) after %d attempts", _exitLoc.x, _exitLoc.y, attempts);
 }
 
 void MazeRunner::placeExit()
@@ -337,7 +378,7 @@ vector<Location> MazeRunner::findPathDfs(Location startLoc, Location endLoc, int
     // found end, return path in vector form
     if (curLoc == endLoc)
     {
-      //log_v("Found path from (%d,%d) to (%d,%d)", startLoc.x, startLoc.y, curLoc.x, curLoc.y);
+      // log_v("Found path from (%d,%d) to (%d,%d)", startLoc.x, startLoc.y, curLoc.x, curLoc.y);
 
       std::vector<Location> path;
       while (!curPath.empty())
@@ -347,7 +388,7 @@ vector<Location> MazeRunner::findPathDfs(Location startLoc, Location endLoc, int
       }
 
       std::reverse(path.begin(), path.end());
-      //reverse(path.begin(), path.end());
+      // reverse(path.begin(), path.end());
       return path;
     }
 
@@ -404,7 +445,7 @@ vector<Location> MazeRunner::findPathBfs(Location startLoc, Location endLoc)
       path.push_back(startLoc);
 
       std::reverse(path.begin(), path.end());
-      //reverse(path.begin(), path.end());
+      // reverse(path.begin(), path.end());
       return path;
     }
 
@@ -441,7 +482,7 @@ void MazeRunner::shuffleDirections(Direction *list, int size)
 
 bool MazeRunner::isWall(int x, int y)
 {
-  return _maze[y][x];
+  return _mazeWalls[y][x];
 }
 
 bool MazeRunner::isWall(Location loc)
@@ -466,7 +507,7 @@ int MazeRunner::getAdjacentWallAndBorderCount(int x, int y)
   {
     int nx = x + Directions[i].x;
     int ny = y + Directions[i].y;
-    if (nx < 0 || nx >= _width || ny < 0 || ny >= _height || _maze[ny][nx])
+    if (nx < 0 || nx >= _width || ny < 0 || ny >= _height || _mazeWalls[ny][nx])
     {
       count++;
     }
