@@ -9,6 +9,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#define ERROR_DELAY 10 * 1000
+
 using namespace std;
 
 struct Coordinate
@@ -57,12 +59,16 @@ private:
   uint32_t _offColor;
   uint32_t _wallColor;
 
+  const uint8_t RunnerSpeed = 6;
   uint32_t _runnerColor;
+  uint8_t _runnerCooldown = 0;
+  int _runnerDistToExit = -1;
   Location _runnerLoc = {-1, -1};
   vector<Location> _runnerPath;
-  int _runnerDistToExit = -1;
 
+  const uint8_t SentrySpeed = 10;
   uint32_t _sentryColor;
+  uint8_t _sentryCooldown = 0;
   Location _sentryLoc = {-1, -1};
 
   uint32_t _exitColor;
@@ -79,11 +85,11 @@ public:
       : MazeRunner(width, height, offColor, wallColor, runnerColor, offColor, exitColor, drawPixel) {}
 
   void init();
-  void update();
+  bool update(); // returns true if any pixel changed
 
 private:
-  void moveRunner();
-  void moveSentry();
+  bool moveRunner();
+  bool moveSentry();
   void drawMaze();
 
   void generateMaze();
@@ -110,6 +116,7 @@ MazeRunner::MazeRunner(int width, int height, uint32_t offColor, uint32_t wallCo
   _offColor = offColor;
   _wallColor = wallColor;
   _runnerColor = runnerColor;
+  _sentryColor = sentryColor;
   _exitColor = exitColor;
   _drawPixel = drawPixel;
 
@@ -126,6 +133,7 @@ void MazeRunner::init()
 
   generateMaze();
   placeRunner();
+  placeSentry();
   placeExit();
 
   // // log maze in debug
@@ -146,25 +154,40 @@ void MazeRunner::init()
   // log_d("*--------*");
 }
 
-void MazeRunner::update()
+bool MazeRunner::update()
 {
-  moveRunner();
-  drawMaze();
+  bool update = false;
+
+  update |= moveRunner();
+  update |= moveSentry();
+
+  if (update)
+  {
+    drawMaze();
+  }
+
+  return update;
 }
 
-void MazeRunner::moveRunner()
+bool MazeRunner::moveRunner()
 {
   if (_runnerLoc == _exitLoc)
   {
     log_d("Runner reached exit");
     init();
-    return;
+    return true;
   }
   else if (_runnerLoc == _sentryLoc)
   {
     log_d("Runner caught by sentry");
+    delay(5000); // TODO: catch animation?
     init();
-    return;
+    return true;
+  }
+
+  if (--_runnerCooldown > 0)
+  {
+    return false;
   }
 
   try
@@ -173,42 +196,61 @@ void MazeRunner::moveRunner()
 
     if (_runnerPath.size() < 2)
     {
+      log_d("Finding new path from (%d,%d) to (%d,%d)", _runnerLoc.x, _runnerLoc.y, _exitLoc.x, _exitLoc.y);
       _runnerPath = findPathDfs(_runnerLoc, _exitLoc, _runnerDistToExit);
     }
 
     if (_runnerPath.size() < 2)
     {
-      log_d("No path found from (%d,%d) to (%d,%d)", _runnerLoc.x, _runnerLoc.y, _exitLoc.x, _exitLoc.y);
-      return;
+      log_e("No path found from (%d,%d) to (%d,%d)", _runnerLoc.x, _runnerLoc.y, _exitLoc.x, _exitLoc.y);
+      delay(ERROR_DELAY);
+      init();
+      return true;
     }
 
     if (_runnerLoc != _runnerPath[0])
     {
-      log_d("Runner is not at expected location (%d,%d)", _runnerPath[0].x, _runnerPath[0].y);
-      return;
+      log_e("Runner is not at expected location (%d,%d)", _runnerPath[0].x, _runnerPath[0].y);
+      delay(ERROR_DELAY);
+      init();
+      return true;
     }
 
     int stepDistance = abs(_runnerPath[1].x - _runnerPath[0].x) + abs(_runnerPath[1].y - _runnerPath[0].y);
     if (stepDistance != 1)
     {
-      log_d("First step is not one step: (%d,%d) to (%d,%d)", _runnerPath[0].x, _runnerPath[0].y, _runnerPath[1].x, _runnerPath[1].y);
-      return;
+      log_e("First step is not one step: (%d,%d) to (%d,%d)", _runnerPath[0].x, _runnerPath[0].y, _runnerPath[1].x, _runnerPath[1].y);
+      delay(ERROR_DELAY);
+      init();
+      return true;
     }
 
+    // erase current location on path to advance
     _runnerPath.erase(_runnerPath.begin());
+
+    Location prevRunnerLoc = _runnerLoc;
     _runnerLoc = _runnerPath[0];
     _runnerDistToExit = _runnerPath.size() - 1; // -1 for included start
-
-    log_d("Moved runner from (%d,%d) to (%d,%d) with dist %d", _runnerPath[0].x, _runnerPath[0].y, _runnerPath[1].x, _runnerPath[1].y, _runnerDistToExit);
+    _runnerCooldown = RunnerSpeed;
+    log_d("Moved runner from (%d,%d) to (%d,%d) with dist %d", prevRunnerLoc.x, prevRunnerLoc.y, _runnerLoc.x, _runnerLoc.y, _runnerDistToExit);
+    return true;
   }
   catch (exception &e)
   {
     log_e("MazeRunnerMove Exception: %s", e.what());
+    delay(ERROR_DELAY);
+    return false;
   }
 }
 
-void MazeRunner::moveSentry()
+bool MazeRunner::moveSentry()
 {
+  if (_sentryColor == _offColor)
+  {
+    return false;
+  }
+
+  return false;
 }
 
 void MazeRunner::drawMaze()
@@ -291,16 +333,29 @@ void MazeRunner::generateMaze()
 
 void MazeRunner::placeRunner()
 {
-  _runnerLoc = {-1, -1};
+  _runnerPath = {};
+  _runnerDistToExit = -1;
 
-  if (_exitLoc.x != -1 && _exitLoc.y != -1)
+  if (_runnerLoc.x > 0 && _runnerLoc.y > 0)
   {
-    _runnerLoc = _exitLoc; // using last exit as start location
-    return;
+    if (_runnerLoc == _exitLoc)
+    {
+      log_d("Runner stays at prev exit loc at (%d,%d)", _runnerLoc.x, _runnerLoc.y);
+      return;
+    }
+    else if (_runnerLoc == _sentryLoc)
+    {
+      log_d("Runner stays at prev sentry loc at (%d,%d)", _runnerLoc.x, _runnerLoc.y);
+      return;
+    }
+    else
+    {
+      log_e("Runner unexpectedly not at exit or sentry loc: (%d,%d)", _runnerLoc.x, _runnerLoc.y);
+    }
   }
 
   int attempts = 0;
-  while (_runnerLoc.x == -1)
+  while (_runnerLoc.x < 0 || _runnerLoc.y < 0)
   {
     int x = random(_width);
     int y = random(_height);
@@ -315,6 +370,11 @@ void MazeRunner::placeRunner()
 
 void MazeRunner::placeSentry()
 {
+  if (_sentryColor == _offColor)
+  {
+    return;
+  }
+
   _sentryLoc = {-1, -1};
 
   int attempts = 0;
@@ -330,7 +390,7 @@ void MazeRunner::placeSentry()
     }
     attempts++;
   }
-  log_d("Placing sentry at (%d,%d) after %d attempts", _exitLoc.x, _exitLoc.y, attempts);
+  log_d("Placing sentry at (%d,%d) after %d attempts", _sentryLoc.x, _sentryLoc.y, attempts);
 }
 
 void MazeRunner::placeExit()
@@ -342,9 +402,10 @@ void MazeRunner::placeExit()
   {
     int x = random(_width);
     int y = random(_height);
-    int distance = abs(x - _runnerLoc.x) + abs(y - _runnerLoc.y);
-    int minDistance = max(0, (_width + _height) / 2 - (attempts / 10));
-    if (!isWall(x, y) && distance > minDistance)
+    int runnerDistance = abs(x - _runnerLoc.x) + abs(y - _runnerLoc.y);
+    int sentryDistance = abs(x - _sentryLoc.x) + abs(y - _sentryLoc.y);
+    int minRunnerDistance = max(0, (_width + _height) / 2 - (attempts / 10));
+    if (!isWall(x, y) && runnerDistance > minRunnerDistance && sentryDistance > 0)
     {
       _exitLoc = {x, y};
     }
