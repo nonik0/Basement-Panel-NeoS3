@@ -56,20 +56,29 @@ private:
   int _width;
   int _height;
 
+  int _mazeExtraWallsToRemove = 0;
+
   uint32_t _offColor;
   uint32_t _wallColor;
 
-  const uint8_t RunnerSpeed = 6;
+  const uint8_t RunnerFear = 5;
+  const uint8_t RunnerSense = 2;
+  const uint8_t RunnerSpeed = 12;
   uint32_t _runnerColor;
   uint8_t _runnerCooldown = 0;
   int _runnerDistToExit = -1;
   Location _runnerLoc = {-1, -1};
+  Location _runnerSentryKnownLoc = {-1, -1};
   vector<Location> _runnerPath;
+  int _runnerFleeDistance = 0;
 
-  const uint8_t SentrySpeed = 10;
+  const uint8_t SentrySense = 2;
+  const uint8_t SentrySpeed = 20;
+  const int SentryCatchDelay = 3000;
   uint32_t _sentryColor;
   uint8_t _sentryCooldown = 0;
   Location _sentryLoc = {-1, -1};
+  vector<Location> _sentryPath;
 
   uint32_t _exitColor;
   Location _exitLoc = {-1, -1};
@@ -97,10 +106,14 @@ private:
   void placeSentry();
   void placeExit();
 
-  vector<Location> findPathDfs(Location startLoc, Location endLoc, int maxDistToEnd = -1);
+  vector<Location> findPathDfs(Location startLoc, Location endLoc, int maxDistToEnd = -1) { return findPathDfs(startLoc, endLoc, {-1, -1}, maxDistToEnd); }
+  vector<Location> findPathDfs(Location startLoc, Location endLoc, Location hazardLoc = {-1, -1}, int maxDistToEnd = -1);
   vector<Location> findPathBfs(Location startLoc, Location endLoc);
 
   void shuffleDirections(Direction *list, int size);
+  bool isAdjacent(Location a, Location b) { return abs(a.x - b.x) + abs(a.y - b.y) == 1; }
+  bool isKnownSentryLoc(int x, int y);
+  bool isKnownSentryLoc(Location loc);
   bool isWall(int x, int y);
   bool isWall(Location loc);
   bool isInMazeBounds(int x, int y);
@@ -171,22 +184,9 @@ bool MazeRunner::update()
 
 bool MazeRunner::moveRunner()
 {
-  if (_runnerLoc == _exitLoc)
+  if (_runnerCooldown > 0)
   {
-    log_d("Runner reached exit");
-    init();
-    return true;
-  }
-  else if (_runnerLoc == _sentryLoc)
-  {
-    log_d("Runner caught by sentry");
-    delay(5000); // TODO: catch animation?
-    init();
-    return true;
-  }
-
-  if (--_runnerCooldown > 0)
-  {
+    _runnerCooldown--;
     return false;
   }
 
@@ -194,45 +194,115 @@ bool MazeRunner::moveRunner()
   {
     // vector<Location> path = findPathBfs(runnerLoc, exitLoc);
 
+    if (_runnerFleeDistance > 0)
+    {
+      Direction awayX = _sentryLoc.x > _runnerLoc.x ? Left : Right;
+      Direction awayY = _sentryLoc.y > _runnerLoc.y ? Up : Down;
+      Direction towardsX = _sentryLoc.x > _runnerLoc.x ? Right : Left;
+      Direction towardsY = _sentryLoc.y > _runnerLoc.y ? Down : Up;
+
+      bool awayXFirst = random(2);
+      bool towardsXFirst = random(2);
+      Direction fleeDirections[4] = {
+          awayXFirst ? awayX : awayY,
+          awayXFirst ? awayY : awayX,
+          towardsXFirst ? towardsX : towardsY,
+          towardsXFirst ? towardsY : towardsX};
+
+      for (Direction step : fleeDirections)
+      {
+        Location nextLoc = {step.x + _runnerLoc.x, step.y + _runnerLoc.y};
+        if (isInMazeBounds(nextLoc) && !isWall(nextLoc) && nextLoc != _runnerSentryKnownLoc && nextLoc != _sentryLoc)
+        {
+          // check if can sense sentry
+          vector<Location> pathToSentry = findPathDfs(_runnerLoc, _sentryLoc, RunnerSense);
+          if (pathToSentry.size() > 0)
+          {
+            _runnerSentryKnownLoc = _sentryLoc;
+            if (nextLoc == pathToSentry[0])
+            {
+              continue; // don't move into sentry's path
+            }
+          }
+          else
+          {
+            _runnerFleeDistance--;
+          }
+
+          _runnerLoc = nextLoc;
+          _runnerCooldown = RunnerSpeed;
+
+          // feel safe, forget sentry location
+          if (_runnerFleeDistance == 0)
+          {
+            _runnerPath = {};
+            _runnerDistToExit = -1;
+            _runnerSentryKnownLoc = {-1, -1};
+            _runnerCooldown = RunnerSpeed * 2;
+          }
+
+          return true;
+        }
+      }
+    }
+
     if (_runnerPath.size() < 2)
     {
       log_d("Finding new path from (%d,%d) to (%d,%d)", _runnerLoc.x, _runnerLoc.y, _exitLoc.x, _exitLoc.y);
-      _runnerPath = findPathDfs(_runnerLoc, _exitLoc, _runnerDistToExit);
+      _runnerPath = findPathDfs(_runnerLoc, _exitLoc, _runnerSentryKnownLoc, _runnerDistToExit);
     }
 
     if (_runnerPath.size() < 2)
     {
-      log_e("No path found from (%d,%d) to (%d,%d)", _runnerLoc.x, _runnerLoc.y, _exitLoc.x, _exitLoc.y);
-      delay(ERROR_DELAY);
-      init();
-      return true;
+      if (_runnerSentryKnownLoc != Location{-1, -1}) // if path not found and sentry was seen, run away from sentry then try again
+      {
+        log_d("No path to goal found, fleeing from sentry at (%d,%d)", _sentryLoc.x, _sentryLoc.y);
+        _runnerFleeDistance = RunnerFear;
+        return false;
+      }
+      else
+      {
+        log_e("No path found from (%d,%d) to (%d,%d)", _runnerLoc.x, _runnerLoc.y, _exitLoc.x, _exitLoc.y);
+        delay(ERROR_DELAY);
+        _mazeExtraWallsToRemove++;
+        init();
+        return true;
+      }
     }
 
-    if (_runnerLoc != _runnerPath[0])
+    // cornered by sentry case, cannot run through sentry
+    if (_runnerPath[1] == _sentryLoc) // if next step is sentry, run away from sentry
     {
-      log_e("Runner is not at expected location (%d,%d)", _runnerPath[0].x, _runnerPath[0].y);
-      delay(ERROR_DELAY);
-      init();
-      return true;
+      log_d("Cornered!?");
+      _runnerFleeDistance = RunnerFear;
+      return false;
     }
 
-    int stepDistance = abs(_runnerPath[1].x - _runnerPath[0].x) + abs(_runnerPath[1].y - _runnerPath[0].y);
-    if (stepDistance != 1)
-    {
-      log_e("First step is not one step: (%d,%d) to (%d,%d)", _runnerPath[0].x, _runnerPath[0].y, _runnerPath[1].x, _runnerPath[1].y);
-      delay(ERROR_DELAY);
-      init();
-      return true;
-    }
-
-    // erase current location on path to advance
-    _runnerPath.erase(_runnerPath.begin());
-
+    // path is good, advance runner by one step
     Location prevRunnerLoc = _runnerLoc;
+    _runnerPath.erase(_runnerPath.begin());
     _runnerLoc = _runnerPath[0];
     _runnerDistToExit = _runnerPath.size() - 1; // -1 for included start
     _runnerCooldown = RunnerSpeed;
-    log_d("Moved runner from (%d,%d) to (%d,%d) with dist %d", prevRunnerLoc.x, prevRunnerLoc.y, _runnerLoc.x, _runnerLoc.y, _runnerDistToExit);
+    log_v("Moved runner from (%d,%d) to (%d,%d) with dist %d", prevRunnerLoc.x, prevRunnerLoc.y, _runnerLoc.x, _runnerLoc.y, _runnerDistToExit);
+
+    if (_runnerLoc == _exitLoc)
+    {
+      log_d("Runner reached exit");
+      init();
+      return true;
+    }
+
+    // check if can sense sentry
+    vector<Location> pathToSentry = findPathDfs(_runnerLoc, _sentryLoc, RunnerSense);
+    if (pathToSentry.size() > 0)
+    {
+      log_d("Runner sensed sentry at (%d,%d)", _sentryLoc.x, _sentryLoc.y);
+      _runnerSentryKnownLoc = _sentryLoc;
+      _runnerPath = {};
+      _runnerDistToExit = -1;
+    }
+
     return true;
   }
   catch (exception &e)
@@ -250,7 +320,50 @@ bool MazeRunner::moveSentry()
     return false;
   }
 
-  return false;
+  if (_sentryCooldown > 0)
+  {
+    _sentryCooldown--;
+    return false;
+  }
+
+  bool update = false;
+
+  // sense runner
+  vector<Location> pathToRunner = findPathDfs(_sentryLoc, _runnerLoc, SentrySense);
+  if (pathToRunner.size() > 0)
+  {
+    // new runner discovery, small delay
+    if (_sentryPath.size() == 0)
+    {
+      log_d("Sentry sensed runner at (%d,%d)", _runnerLoc.x, _runnerLoc.y);
+
+      _sentryPath = pathToRunner;
+      _sentryCooldown = SentrySpeed / 2;
+      return false; // don't move sentry yet until after cooldown
+    }
+
+    _sentryPath = pathToRunner;
+  }
+
+  // step along path if any
+  if (_sentryPath.size() > 0)
+  {
+    Location prevSentryLoc = _sentryLoc;
+    _sentryPath.erase(_sentryPath.begin());
+    _sentryLoc = _sentryPath[0];
+    _sentryCooldown = SentrySpeed;
+    log_v("Moved sentry from (%d,%d) to (%d,%d)", prevSentryLoc.x, prevSentryLoc.y, _sentryLoc.x, _sentryLoc.y);
+    update = true;
+
+    if (_sentryLoc == _runnerLoc)
+    {
+      log_d("Runner caught by sentry");
+      delay(SentryCatchDelay);
+      init();
+    }
+  }
+
+  return update;
 }
 
 void MazeRunner::drawMaze()
@@ -328,6 +441,19 @@ void MazeRunner::generateMaze()
       path.pop();
     }
   }
+
+  int wallsRemoved = 0;
+  while (wallsRemoved < _mazeExtraWallsToRemove)
+  {
+    int x = random(_width);
+    int y = random(_height);
+    if (isWall(x, y))
+    {
+      _mazeWalls[y][x] = false;
+      wallsRemoved++;
+    }
+  }
+
   log_d("Maze generation complete");
 }
 
@@ -335,6 +461,9 @@ void MazeRunner::placeRunner()
 {
   _runnerPath = {};
   _runnerDistToExit = -1;
+  _runnerSentryKnownLoc = {-1, -1};
+  _runnerFleeDistance = 0;
+  _runnerCooldown = 0;
 
   if (_runnerLoc.x > 0 && _runnerLoc.y > 0)
   {
@@ -376,6 +505,8 @@ void MazeRunner::placeSentry()
   }
 
   _sentryLoc = {-1, -1};
+  _sentryPath = {};
+  _sentryCooldown = SentrySpeed;
 
   int attempts = 0;
   while (_sentryLoc.x == -1)
@@ -414,7 +545,7 @@ void MazeRunner::placeExit()
   log_d("Placing exit at (%d,%d) after %d attempts", _exitLoc.x, _exitLoc.y, attempts);
 }
 
-vector<Location> MazeRunner::findPathDfs(Location startLoc, Location endLoc, int maxDistToEnd)
+vector<Location> MazeRunner::findPathDfs(Location startLoc, Location endLoc, Location hazardLoc, int maxDistToEnd)
 {
   stack<pair<Location, int>> locsToVisit = stack<pair<Location, int>>();
   unordered_set<Location> locsVisited = unordered_set<Location>();
@@ -468,7 +599,7 @@ vector<Location> MazeRunner::findPathDfs(Location startLoc, Location endLoc, int
     for (Direction step : randSteps)
     {
       Location nextLoc = {curLoc.x + step.x, curLoc.y + step.y};
-      if (isInMazeBounds(nextLoc) && !isWall(nextLoc) && !locsVisited.count(nextLoc))
+      if (isInMazeBounds(nextLoc) && !isWall(nextLoc) && (hazardLoc == Location{-1, -1} || (nextLoc != hazardLoc && !isAdjacent(nextLoc, hazardLoc))) && !locsVisited.count(nextLoc))
       {
         locsToVisit.push({nextLoc, distFromStart + 1});
       }
@@ -539,6 +670,16 @@ void MazeRunner::shuffleDirections(Direction *list, int size)
     list[i] = list[index];
     list[index] = temp;
   }
+}
+
+bool MazeRunner::isKnownSentryLoc(int x, int y)
+{
+  return x == _runnerSentryKnownLoc.x && y == _runnerSentryKnownLoc.y;
+}
+
+bool MazeRunner::isKnownSentryLoc(Location loc)
+{
+  return isKnownSentryLoc(loc.x, loc.y);
 }
 
 bool MazeRunner::isWall(int x, int y)

@@ -52,8 +52,8 @@ const std::tuple<uint8_t, uint16_t> AlphaNumFigure8Path[] = {
     {0, ALPHANUM_SEG_A}, {1, ALPHANUM_SEG_H}, {1, ALPHANUM_SEG_N}, {2, ALPHANUM_SEG_D}, {3, ALPHANUM_SEG_D}, {3, ALPHANUM_SEG_C}, {3, ALPHANUM_SEG_B}, {3, ALPHANUM_SEG_A}, {2, ALPHANUM_SEG_G2}, {2, ALPHANUM_SEG_K}, {1, ALPHANUM_SEG_L}, {0, ALPHANUM_SEG_D}, {0, ALPHANUM_SEG_E}, {0, ALPHANUM_SEG_F}};
 const int AlphaNumFigure8PathLength = sizeof(AlphaNumFigure8Path) / sizeof(AlphaNumFigure8Path[0]);
 
-const std::tuple<uint8_t, uint16_t> AlphaNumStarPath[] = { {0, ALPHANUM_SEG_J}, {0, ALPHANUM_SEG_K}, {0, ALPHANUM_SEG_G2}, {0, ALPHANUM_SEG_M}, {0, ALPHANUM_SEG_L}, {0, ALPHANUM_SEG_G1}, {0, ALPHANUM_SEG_J}, {0, ALPHANUM_SEG_H} };
-const int AlphaNumStarPathLength = sizeof(AlphaNumStarPath) / sizeof(AlphaNumStarPath[0]); 
+const std::tuple<uint8_t, uint16_t> AlphaNumStarPath[] = {{0, ALPHANUM_SEG_J}, {0, ALPHANUM_SEG_K}, {0, ALPHANUM_SEG_G2}, {0, ALPHANUM_SEG_M}, {0, ALPHANUM_SEG_L}, {0, ALPHANUM_SEG_G1}, {0, ALPHANUM_SEG_J}, {0, ALPHANUM_SEG_H}};
+const int AlphaNumStarPathLength = sizeof(AlphaNumStarPath) / sizeof(AlphaNumStarPath[0]);
 
 const std::tuple<uint8_t, uint16_t> *AlphaNumPaths[] = {AlphaNumLoopPath, AlphaNumFigure8Path, AlphaNumStarPath};
 int AlphaNumPathLengths[] = {AlphaNumLoopPathLength, AlphaNumFigure8PathLength, AlphaNumStarPathLength};
@@ -66,10 +66,9 @@ enum Mode
   Blinky,
 };
 
-
-
 bool display = true;
 Mode mode = Mode::Music;
+unsigned long lastInput = 0;
 
 bool ack1Init = false;
 bool ack1Display = false;
@@ -90,8 +89,8 @@ bool neoKeyInit = false;
 Adafruit_NeoKey_1x4 neokeyArray[2] = {Adafruit_NeoKey_1x4(SS_NEOKEY1_ADDR), Adafruit_NeoKey_1x4(SS_NEOKEY2_ADDR)};
 Adafruit_MultiNeoKey1x4 neoKey((Adafruit_NeoKey_1x4 *)neokeyArray, 2, 1);
 NeoKey1x4Callback neoKeyCallback(keyEvent evt);
-unsigned long neoKeyLastPress = 0;
-unsigned long neoKeyLastRelease = 0;
+unsigned long neoKeyLastPressMillis = 0;
+unsigned long neoKeyLastReleaseMillis = 0;
 // light/blinky mode state
 int neoKeyPressedIndex = -1;
 bool neoKeyPixelState[SS_NEOKEY_COUNT];
@@ -102,6 +101,7 @@ Adafruit_seesaw neoSliderSs;
 seesaw_NeoPixel neoSliderPixels = seesaw_NeoPixel(SS_NEOSLIDER_LED_COUNT, SS_NEOSLIDER_LED_PIN, NEO_GRB + NEO_KHZ800);
 uint16_t neoSliderReading = 0;
 uint16_t neoSliderLastReading = 0;
+unsigned long neoSliderLastChangeMillis = 0;
 // light/blinky mode state
 bool neoSliderPixelState[SS_NEOSLIDER_LED_COUNT];
 int neoSliderBlinkyDelay[SS_NEOSLIDER_LED_COUNT];
@@ -112,7 +112,8 @@ seesaw_NeoPixel rotaryNeoPixel = seesaw_NeoPixel(SS_ROTARY_LED_COUNT, SS_ROTARY_
 int32_t rotaryEncPos;
 uint8_t rotaryWheelPos;
 bool rotaryIsPressed = false;
-unsigned long rotaryLastPress = 0;
+unsigned long rotaryLastPressMillis = 0;
+unsigned long rotaryLastChangeMillis = 0;
 // light/blinky mode state
 bool rotaryLedState;
 int rotaryBlinkyDelay;
@@ -133,7 +134,7 @@ uint32_t wheel(uint8_t wheelPos)
   return seesaw_NeoPixel::Color(wheelPos * 3, 255 - wheelPos * 3, 0);
 }
 
-void changeMode()
+void changeMode(int mode = -1)
 {
   if (!ack1Init || !neoKeyInit || !neoSliderInit || !rotaryInit)
   {
@@ -141,7 +142,14 @@ void changeMode()
     return;
   }
 
-  mode = static_cast<Mode>((static_cast<int>(mode) + 1) % 3);
+  if (mode > 0)
+  {
+    mode = mode % 3;
+  }
+  else
+  {
+    mode = static_cast<Mode>((static_cast<int>(mode) + 1) % 3);
+  }
 
   if (mode == Music)
   {
@@ -609,7 +617,7 @@ void neoKeyUpdate()
   }
 
   // debounce after key press
-  if (millis() - neoKeyLastPress < 100 || millis() - neoKeyLastRelease < 100)
+  if (millis() - neoKeyLastPressMillis < 100 || millis() - neoKeyLastReleaseMillis < 100)
   {
     return;
   }
@@ -659,11 +667,11 @@ NeoKey1x4Callback neoKeyCallback(keyEvent evt)
   if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING)
   {
     neoKeyPressedIndex = key;
-    neoKeyLastPress = millis();
+    neoKeyLastPressMillis = millis();
   }
   else if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_FALLING)
   {
-    neoKeyLastRelease = millis();
+    neoKeyLastReleaseMillis = millis();
   }
 
   if (mode == Mode::Music)
@@ -754,6 +762,11 @@ void neoSliderUpdate()
 
   neoSliderLastReading = neoSliderReading;
   neoSliderReading = 1023 - neoSliderSs.analogRead(SS_NEOSLIDER_SLD_PIN); // invert slider reading
+
+  if (neoSliderReading != neoSliderLastReading)
+  {
+    neoSliderLastChangeMillis = millis(); // TODO: might need debounce?
+  }
 
   if (mode == Mode::Music)
   {
@@ -848,10 +861,10 @@ void rotaryUpdate()
 
   if (!rotarySs.digitalRead(SS_ROTARY_BTN_PIN))
   {
-    if (!rotaryIsPressed && millis() - rotaryLastPress > 100)
+    if (!rotaryIsPressed && millis() - rotaryLastPressMillis > 100)
     {
       rotaryIsPressed = true;
-      rotaryLastPress = millis();
+      rotaryLastPressMillis = millis();
       changeMode();
       ack1Tone(1000);
       delay(100);
@@ -866,11 +879,12 @@ void rotaryUpdate()
   int32_t newEncPos = rotarySs.getEncoderPosition();
   if (rotaryEncPos != newEncPos)
   {
-    //log_d(newEncPos);
+    // log_d(newEncPos);
     rotaryWheelPos = (newEncPos * 5) & 0xFF;
     rotaryNeoPixel.setPixelColor(0, wheel(rotaryWheelPos)); // 3 rotations for full cycle with 24 step encoder?
     rotaryNeoPixel.show();
     rotaryEncPos = newEncPos;
+    rotaryLastChangeMillis = millis();
   }
 
   if (mode == Mode::Music)
@@ -902,5 +916,29 @@ void rotaryUpdate()
       rotaryNeoPixel.setPixelColor(0, color);
       rotaryNeoPixel.show();
     }
+  }
+}
+
+void inputUpdate()
+{
+  // just goes to "screensaver" mode after 30 seconds of inactivity
+  if (!ack1Init || !neoKeyInit || !neoSliderInit || !rotaryInit || mode == Mode::Blinky)
+    return;
+
+  unsigned long now = millis();
+  unsigned long neoKeyLastPressElapsed = now - neoKeyLastPressMillis;
+  unsigned long neoKeyLastReleaseElapsed = now - neoKeyLastReleaseMillis;
+  unsigned long neoSliderLastChangeElapsed = now - neoSliderLastChangeMillis;
+  unsigned long rotaryLastChangeElapsed = now - rotaryLastChangeMillis;
+  unsigned long rotaryLastPressElapsed = now - rotaryLastPressMillis;
+
+  unsigned long shortestElapsed = min(neoKeyLastPressElapsed, neoKeyLastReleaseElapsed);
+  shortestElapsed = min(shortestElapsed, neoSliderLastChangeElapsed);
+  shortestElapsed = min(shortestElapsed, rotaryLastChangeElapsed);
+  shortestElapsed = min(shortestElapsed, rotaryLastPressElapsed);
+
+  if (shortestElapsed > 30 * 1000)
+  {
+    changeMode(Mode::Blinky);
   }
 }

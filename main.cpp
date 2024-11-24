@@ -37,6 +37,7 @@ void loop()
   neoKeyUpdate();
   neoSliderUpdate();
   rotaryUpdate();
+  inputUpdate();
 
   ArduinoOTA.handle();
   restServer.handleClient();
