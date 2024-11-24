@@ -51,3 +51,43 @@ const uint16_t t2_theme[] PROGMEM = {
     N(Dn, 6, 9), N(En, 6, 9), N(Fn, 6, 60), N(En, 6, 15), N(Cn, 6, 9), N(Gn, 5, 60),
     N(Fn, 5, 60), N(Dn, 5, 9), N(Fn, 5, 60), N(En, 5, 60),
     0};
+
+
+// int getFrequency(int note, int octave)
+// {
+//   // Define the reference frequency for A4
+//   const double A4_FREQUENCY = 440.0;
+
+//   // Ensure the note is valid (should be between 0 and 11)
+//   if (note < 0 || note > 11)
+//   {
+//     log_e("Invalid note: %d", note);
+//     return 0;
+//   }
+
+//   int semitoneDistance = note - An + 12 * (octave - 4);
+//   int frequency = static_cast<int>(std::round(A4_FREQUENCY * std::pow(2.0, semitoneDistance / 12.0)));
+//   return frequency;
+// }
+
+// void playTerminatorTheme()
+// {
+//   for (int i = 0; i < sizeof(t2_theme) / sizeof(uint16_t); i++)
+//   {
+//     uint16_t note = pgm_read_word(&t2_theme[i]);
+//     uint8_t timing = note & TIMING_MASK;
+//     uint8_t octave = (note & OCTAVE_MASK) >> 12;
+//     uint8_t noteVal = (note & NOTE_MASK) >> 8;
+
+//     if (noteVal == 0)
+//     {
+//       delay(timing * 60);
+//       continue;
+//     }
+
+//     int freq = getFrequency(noteVal, octave);
+//     ack1Tone(freq);
+//     delay(timing * 60);
+//     ack1Tone(0);
+//   }
+// }

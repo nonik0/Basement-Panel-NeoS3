@@ -53,6 +53,13 @@ const Direction Directions[] = {Left, Right, Up, Down};
 class MazeRunner
 {
 private:
+  const uint8_t RunnerFear = 5;
+  const uint8_t RunnerSense = 2;
+  const uint8_t RunnerSpeed = 12;
+  const uint8_t SentrySense = 2;
+  const uint8_t SentrySpeed = 20;
+  const int SentryCatchDelay = 3000;
+
   int _width;
   int _height;
 
@@ -61,24 +68,18 @@ private:
   uint32_t _offColor;
   uint32_t _wallColor;
 
-  const uint8_t RunnerFear = 5;
-  const uint8_t RunnerSense = 2;
-  const uint8_t RunnerSpeed = 12;
+  Location _runnerLoc = {-1, -1};
+  Location _runnerSentryKnownLoc = {-1, -1};
+  stack<Location> _runnerPath;
   uint32_t _runnerColor;
   uint8_t _runnerCooldown = 0;
   int _runnerDistToExit = -1;
-  Location _runnerLoc = {-1, -1};
-  Location _runnerSentryKnownLoc = {-1, -1};
-  vector<Location> _runnerPath;
   int _runnerFleeDistance = 0;
 
-  const uint8_t SentrySense = 2;
-  const uint8_t SentrySpeed = 20;
-  const int SentryCatchDelay = 3000;
+  Location _sentryLoc = {-1, -1};
+  stack<Location> _sentryPath;
   uint32_t _sentryColor;
   uint8_t _sentryCooldown = 0;
-  Location _sentryLoc = {-1, -1};
-  vector<Location> _sentryPath;
 
   uint32_t _exitColor;
   Location _exitLoc = {-1, -1};
@@ -106,9 +107,9 @@ private:
   void placeSentry();
   void placeExit();
 
-  vector<Location> findPathDfs(Location startLoc, Location endLoc, int maxDistToEnd = -1) { return findPathDfs(startLoc, endLoc, {-1, -1}, maxDistToEnd); }
-  vector<Location> findPathDfs(Location startLoc, Location endLoc, Location hazardLoc = {-1, -1}, int maxDistToEnd = -1);
-  vector<Location> findPathBfs(Location startLoc, Location endLoc);
+  stack<Location> findPathDfs(Location startLoc, Location endLoc, int maxDistToEnd = -1) { return findPathDfs(startLoc, endLoc, {-1, -1}, maxDistToEnd); }
+  stack<Location> findPathDfs(Location startLoc, Location endLoc, Location hazardLoc = {-1, -1}, int maxDistToEnd = -1);
+  stack<Location> findPathBfs(Location startLoc, Location endLoc);
 
   void shuffleDirections(Direction *list, int size);
   bool isAdjacent(Location a, Location b) { return abs(a.x - b.x) + abs(a.y - b.y) == 1; }
@@ -190,6 +191,58 @@ bool MazeRunner::moveRunner()
     return false;
   }
 
+  // TODO:
+  // 1. sense sentry
+  // 2. if sentry is sensed, update awareness
+  // 3. check if path to exit is possible
+  // 4. if path to exit is not possible, run away from sentry
+
+  try
+  {
+    // sense
+    stack<Location> sensedPathToSentry = findPathDfs(_runnerLoc, _sentryLoc, RunnerSense);
+    if (sensedPathToSentry.size() > 0)
+    {
+      if (_runnerSentryKnownLoc == Location{-1, -1})
+      {
+        _runnerPath = findPathDfs(_runnerLoc, _exitLoc, _sentryLoc);
+        log_v("Runner sensed sentry at (%d,%d)", _sentryLoc.x, _sentryLoc.y);
+      }
+
+      if (_runnerPath.size() > 0)
+      {
+        _runnerSentryKnownLoc = _sentryLoc;
+      }
+
+      _runnerSentryKnownLoc = _sentryLoc;
+    }
+
+    // move
+    if (_runnerPath.size() > 0)
+    {
+      Location prevRunnerLoc = _runnerLoc;
+      _runnerLoc = _runnerPath.top();
+      _runnerPath.pop();
+      _runnerCooldown = RunnerSpeed;
+      // update = true;
+      log_v("Moved runner from (%d,%d) to (%d,%d)", prevRunnerLoc.x, prevRunnerLoc.y, _runnerLoc.x, _runnerLoc.y);
+
+      if (_runnerLoc == _exitLoc)
+      {
+        log_d("Runner reached exit");
+        init();
+        return true;
+      }
+    }
+  }
+  catch (exception &e)
+  {
+    log_e("MazeRunnerMove Exception: %s", e.what());
+    delay(ERROR_DELAY);
+    return false;
+  }
+
+  /*
   try
   {
     // vector<Location> path = findPathBfs(runnerLoc, exitLoc);
@@ -313,6 +366,7 @@ bool MazeRunner::moveRunner()
     delay(ERROR_DELAY);
     return false;
   }
+  */
 }
 
 bool MazeRunner::moveSentry()
@@ -328,44 +382,41 @@ bool MazeRunner::moveSentry()
     return false;
   }
 
-  bool update = false;
-
-  // sense runner
-  vector<Location> pathToRunner = findPathDfs(_sentryLoc, _runnerLoc, SentrySense);
-  if (pathToRunner.size() > 0)
+  // TODO: make sure this is decent location to check
+  if (_sentryLoc == _runnerLoc)
   {
-    // new runner discovery, small delay
-    if (_sentryPath.size() == 0)
-    {
-      log_v("Sentry sensed runner at (%d,%d)", _runnerLoc.x, _runnerLoc.y);
-
-      _sentryPath = pathToRunner;
-      _sentryCooldown = SentrySpeed / 2;
-      return false; // don't move sentry yet until after cooldown
-    }
-
-    _sentryPath = pathToRunner;
+    log_d("Runner caught by sentry");
+    delay(SentryCatchDelay);
+    init();
   }
 
-  // step along path if any
+  // sense
+  stack<Location> sensedPathToRunner = findPathDfs(_sentryLoc, _runnerLoc, SentrySense);
+  if (sensedPathToRunner.size() > 0)
+  {
+    _sentryPath = sensedPathToRunner;
+
+    // new detection, small "warm up" cooldown before moving
+    if (_sentryPath.size() == 0) // path implies runner was seen recently
+    {
+      log_v("Sentry sensed runner at (%d,%d)", _runnerLoc.x, _runnerLoc.y);
+      _sentryCooldown = SentrySpeed / 2;
+      return false;
+    }
+  }
+
+  // move
   if (_sentryPath.size() > 0)
   {
     Location prevSentryLoc = _sentryLoc;
-    _sentryPath.erase(_sentryPath.begin());
-    _sentryLoc = _sentryPath[0];
+    _sentryLoc = _sentryPath.top();
+    _sentryPath.pop();
     _sentryCooldown = SentrySpeed;
     log_v("Moved sentry from (%d,%d) to (%d,%d)", prevSentryLoc.x, prevSentryLoc.y, _sentryLoc.x, _sentryLoc.y);
-    update = true;
-
-    if (_sentryLoc == _runnerLoc)
-    {
-      log_d("Runner caught by sentry");
-      delay(SentryCatchDelay);
-      init();
-    }
+    return true;
   }
 
-  return update;
+  return false;
 }
 
 void MazeRunner::drawMaze()
@@ -553,7 +604,7 @@ void MazeRunner::placeExit()
   log_d("Placing exit at (%d,%d) after %d attempts", _exitLoc.x, _exitLoc.y, attempts);
 }
 
-vector<Location> MazeRunner::findPathDfs(Location startLoc, Location endLoc, Location hazardLoc, int maxDistToEnd)
+stack<Location> MazeRunner::findPathDfs(Location startLoc, Location endLoc, Location hazardLoc, int maxDistToEnd)
 {
   stack<pair<Location, int>> locsToVisit = stack<pair<Location, int>>();
   unordered_set<Location> locsVisited = unordered_set<Location>();
@@ -575,20 +626,24 @@ vector<Location> MazeRunner::findPathDfs(Location startLoc, Location endLoc, Loc
     }
     curPath.push(curLoc);
 
-    // found end, return path in vector form
+    // found end, return reverse path stack and return
     if (curLoc == endLoc)
     {
-      // log_v("Found path from (%d,%d) to (%d,%d)", startLoc.x, startLoc.y, curLoc.x, curLoc.y);
+      log_v("Found path from (%d,%d) to (%d,%d)", startLoc.x, startLoc.y, curLoc.x, curLoc.y);
 
-      std::vector<Location> path;
+      std::stack<Location> path;
       while (!curPath.empty())
       {
-        path.push_back(curPath.top());
+        path.push(curPath.top());
         curPath.pop();
       }
 
-      std::reverse(path.begin(), path.end());
-      // reverse(path.begin(), path.end());
+      // std::reverse(path.begin(), path.end());
+
+      // remove start location from path
+      // path.erase(path.begin());
+      path.pop();
+
       return path;
     }
 
@@ -614,10 +669,10 @@ vector<Location> MazeRunner::findPathDfs(Location startLoc, Location endLoc, Loc
     }
   }
 
-  return vector<Location>();
+  return stack<Location>();
 }
 
-vector<Location> MazeRunner::findPathBfs(Location startLoc, Location endLoc)
+stack<Location> MazeRunner::findPathBfs(Location startLoc, Location endLoc)
 {
   queue<Location> locsToVisit = queue<Location>();
   unordered_set<Location> locsVisited = unordered_set<Location>();
@@ -636,16 +691,19 @@ vector<Location> MazeRunner::findPathBfs(Location startLoc, Location endLoc)
     {
       log_d("Found path from (%d,%d) to (%d,%d)", startLoc.x, startLoc.y, curLoc.x, curLoc.y);
 
-      vector<Location> path = vector<Location>();
+      stack<Location> path = stack<Location>();
       while (curLoc != startLoc)
       {
-        path.push_back(curLoc);
+        path.push(curLoc);
         curLoc = visitedFrom[curLoc];
       }
-      path.push_back(startLoc);
+      path.push(startLoc);
 
-      std::reverse(path.begin(), path.end());
-      // reverse(path.begin(), path.end());
+      // std::reverse(path.begin(), path.end());
+      //  reverse(path.begin(), path.end());
+
+      path.pop();
+
       return path;
     }
 
@@ -666,7 +724,7 @@ vector<Location> MazeRunner::findPathBfs(Location startLoc, Location endLoc)
     }
   }
 
-  return vector<Location>();
+  return stack<Location>();
 }
 
 void MazeRunner::shuffleDirections(Direction *list, int size)

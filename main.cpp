@@ -7,6 +7,7 @@
 
 #define DELAY_MS 10
 
+InputTaskHandler inputTask;
 MazeRunnerTaskHandler mazeRunner;
 
 void setup()
@@ -20,25 +21,12 @@ void setup()
   otaSetup();
   restSetup();
 
-  alphaNumSetup();
-  neoKeySetup();
-  neoSliderSetup();
-  rotarySetup();
-  delay(1000);
-  ack1Setup(); // slow to initialize
-
+  inputTask.createTask();
   mazeRunner.createTask();
 }
 
 void loop()
 {
-  ack1Update();
-  alphaNumUpdate();
-  neoKeyUpdate();
-  neoSliderUpdate();
-  rotaryUpdate();
-  inputUpdate();
-
   ArduinoOTA.handle();
   restServer.handleClient();
   checkWifiStatus();
