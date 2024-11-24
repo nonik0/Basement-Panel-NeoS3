@@ -56,7 +56,7 @@ private:
   int _width;
   int _height;
 
-  int _mazeExtraWallsToRemove = 0;
+  int _mazeExtraWallsToRemove = 1;
 
   uint32_t _offColor;
   uint32_t _wallColor;
@@ -244,6 +244,8 @@ bool MazeRunner::moveRunner()
           return true;
         }
       }
+
+      return false;
     }
 
     if (_runnerPath.size() < 2)
@@ -297,7 +299,7 @@ bool MazeRunner::moveRunner()
     vector<Location> pathToSentry = findPathDfs(_runnerLoc, _sentryLoc, RunnerSense);
     if (pathToSentry.size() > 0)
     {
-      log_d("Runner sensed sentry at (%d,%d)", _sentryLoc.x, _sentryLoc.y);
+      log_v("Runner sensed sentry at (%d,%d)", _sentryLoc.x, _sentryLoc.y);
       _runnerSentryKnownLoc = _sentryLoc;
       _runnerPath = {};
       _runnerDistToExit = -1;
@@ -335,7 +337,7 @@ bool MazeRunner::moveSentry()
     // new runner discovery, small delay
     if (_sentryPath.size() == 0)
     {
-      log_d("Sentry sensed runner at (%d,%d)", _runnerLoc.x, _runnerLoc.y);
+      log_v("Sentry sensed runner at (%d,%d)", _runnerLoc.x, _runnerLoc.y);
 
       _sentryPath = pathToRunner;
       _sentryCooldown = SentrySpeed / 2;
@@ -443,15 +445,21 @@ void MazeRunner::generateMaze()
   }
 
   int wallsRemoved = 0;
-  while (wallsRemoved < _mazeExtraWallsToRemove)
+  maxCycles = 1000;
+  while (wallsRemoved < _mazeExtraWallsToRemove && maxCycles-- > 0)
   {
     int x = random(_width);
     int y = random(_height);
-    if (isWall(x, y))
+    if (isWall(x, y) && getAdjacentWallAndBorderCount(x, y) >= 2)
     {
       _mazeWalls[y][x] = false;
       wallsRemoved++;
     }
+  }
+
+  if (maxCycles <= 0)
+  {
+    log_e("Failed to remove extra walls");
   }
 
   log_d("Maze generation complete");
