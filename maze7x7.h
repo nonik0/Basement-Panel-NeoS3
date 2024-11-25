@@ -10,7 +10,7 @@ extern bool display;
 class MazeRunnerTaskHandler : public TaskHandler
 {
 private:
-    const int MAZE_DELAY_MS = 15;
+    const int MAZE_DELAY_MS = 60;
     const uint32_t BLACK = Adafruit_NeoPixel::Color(0x00, 0x00, 0x00);
     const uint32_t RED = Adafruit_NeoPixel::Color(0xFF, 0x00, 0x00);
     const uint32_t ORANGE = Adafruit_NeoPixel::Color(0xCC, 0x44, 0x00);

@@ -193,7 +193,7 @@ void InputTaskHandler::task(void *parameters)
     neoKeyUpdate();
     neoSliderUpdate();
     rotaryUpdate();
-    update();
+    //update();
 
     delay(DELAY_MS);
   }
@@ -217,7 +217,7 @@ void InputTaskHandler::update()
   shortestElapsed = min(shortestElapsed, rotaryLastChangeElapsed);
   shortestElapsed = min(shortestElapsed, rotaryLastPressElapsed);
 
-  if (shortestElapsed > 30 * 1000)
+  if (shortestElapsed > 10 * 1000)
   {
     changeMode(Mode::Blinky);
   }
