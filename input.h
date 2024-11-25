@@ -45,8 +45,6 @@
 #define DELAY_MS 10
 #define BASE_DELAY 40
 
-bool display = true;
-
 // TODO: clean up more
 
 const std::tuple<uint8_t, uint16_t> AlphaNumLoopPath[] = {
@@ -74,61 +72,66 @@ private:
     Blinky,
   };
 
-  Mode mode = Mode::Music;
-  unsigned long lastInput = 0;
+  bool _display = true;
+  Mode _mode = Mode::Music;
+  unsigned long _lastInput = 0;
 
-  bool ack1Init = false;
-  bool ack1Display = false;
-  const char *ack1BootMessage = "Hello world!";
-  const char *ack1Message = "Dad loves Stella and Beau!";
-  const char *BaseToneNames[8] = {"C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"};
-  const int BaseToneFrequencies[8] = {261, 293, 329, 349, 392, 440, 493, 523}; // C4, D4, E4, F4, G4, A4, B4, C5
+  bool _ack1Init = false;
+  bool _ack1Display = false;
+  const char *_ack1BootMessage = "Hello world!";
+  const char *_ack1Message = "Dad loves Stella and Beau!";
+  const char *_BaseToneNames[8] = {"C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"};
+  const int _BaseToneFrequencies[8] = {261, 293, 329, 349, 392, 440, 493, 523}; // C4, D4, E4, F4, G4, A4, B4, C5
 
-  bool alphaNumInit = false;
-  Adafruit_AlphaNum4 alphaNum = Adafruit_AlphaNum4();
-  bool alphaNumUpdated = false;
-  char alphaNumBuffer[ALPHANUM_CHAR_COUNT] = {' ', ' ', ' ', ' '};
-  int alphaNumBlinkyDelay;
-  int alphaNumBlinkyIndex;
-  int alphaNumPathIndex;
+  bool _alphaNumInit = false;
+  Adafruit_AlphaNum4 _alphaNum = Adafruit_AlphaNum4();
+  bool _alphaNumUpdated = false;
+  char _alphaNumBuffer[ALPHANUM_CHAR_COUNT] = {' ', ' ', ' ', ' '};
+  int _alphaNumBlinkyDelay;
+  int _alphaNumBlinkyIndex;
+  int _alphaNumPathIndex;
 
-  bool neoKeyInit = false;
-  Adafruit_NeoKey_1x4 neokeyArray[2] = {Adafruit_NeoKey_1x4(SS_NEOKEY1_ADDR), Adafruit_NeoKey_1x4(SS_NEOKEY2_ADDR)};
-  Adafruit_MultiNeoKey1x4 neoKey = Adafruit_MultiNeoKey1x4((Adafruit_NeoKey_1x4 *)neokeyArray, 2, 1);
-
-  unsigned long neoKeyLastPressMillis = 0;
-  unsigned long neoKeyLastReleaseMillis = 0;
+  bool _neoKeyInit = false;
+  Adafruit_NeoKey_1x4 _neokeyArray[2] = {Adafruit_NeoKey_1x4(SS_NEOKEY1_ADDR), Adafruit_NeoKey_1x4(SS_NEOKEY2_ADDR)};
+  Adafruit_MultiNeoKey1x4 _neoKey = Adafruit_MultiNeoKey1x4((Adafruit_NeoKey_1x4 *)_neokeyArray, 2, 1);
+  int _neoKeyJustPressedIndex = -1;
+  unsigned long _neoKeyLastPressMillis = 0;
+  unsigned long _neoKeyLastReleaseMillis = 0;
   // light/blinky mode state
-  int neoKeyPressedIndex = -1;
-  bool neoKeyPixelState[SS_NEOKEY_COUNT];
-  int neoKeyBlinkyDelay[SS_NEOKEY_COUNT]; // blinky state
+  int _neoKeyPressedIndex = -1;
+  bool _neoKeyPixelState[SS_NEOKEY_COUNT];
+  int _neoKeyBlinkyDelay[SS_NEOKEY_COUNT]; // blinky state
 
-  bool neoSliderInit = false;
-  Adafruit_seesaw neoSliderSs;
-  seesaw_NeoPixel neoSliderPixels = seesaw_NeoPixel(SS_NEOSLIDER_LED_COUNT, SS_NEOSLIDER_LED_PIN, NEO_GRB + NEO_KHZ800);
-  uint16_t neoSliderReading = 0;
-  uint16_t neoSliderLastReading = 0;
-  unsigned long neoSliderLastChangeMillis = 0;
+  bool _neoSliderInit = false;
+  Adafruit_seesaw _neoSliderSs;
+  seesaw_NeoPixel _neoSliderPixels = seesaw_NeoPixel(SS_NEOSLIDER_LED_COUNT, SS_NEOSLIDER_LED_PIN, NEO_GRB + NEO_KHZ800);
+  uint16_t _neoSliderReading = 0;
+  uint16_t _neoSliderLastReading = 0;
+  bool _neoSliderReaderJustChanged = false;
+  unsigned long _neoSliderLastChangeMillis = 0;
   // light/blinky mode state
-  bool neoSliderPixelState[SS_NEOSLIDER_LED_COUNT];
-  int neoSliderBlinkyDelay[SS_NEOSLIDER_LED_COUNT];
+  bool _neoSliderPixelState[SS_NEOSLIDER_LED_COUNT];
+  int _neoSliderBlinkyDelay[SS_NEOSLIDER_LED_COUNT];
 
-  bool rotaryInit = false;
-  Adafruit_seesaw rotarySs;
-  seesaw_NeoPixel rotaryNeoPixel = seesaw_NeoPixel(SS_ROTARY_LED_COUNT, SS_ROTARY_LED_PIN, NEO_GRB + NEO_KHZ800);
-  int32_t rotaryEncPos;
-  uint8_t rotaryWheelPos;
-  bool rotaryIsPressed = false;
-  unsigned long rotaryLastPressMillis = 0;
-  unsigned long rotaryLastChangeMillis = 0;
+  bool _rotaryInit = false;
+  Adafruit_seesaw _rotarySs;
+  seesaw_NeoPixel _rotaryNeoPixel = seesaw_NeoPixel(SS_ROTARY_LED_COUNT, SS_ROTARY_LED_PIN, NEO_GRB + NEO_KHZ800);
+  bool _rotaryJustPressed = false;
+  bool _rotaryJustChanged = false;
+  int32_t _rotaryEncPos;
+  uint8_t _rotaryWheelPos;
+  bool _rotaryIsPressed = false;
+  unsigned long _rotaryLastPressMillis = 0;
+  unsigned long _rotaryLastChangeMillis = 0;
   // light/blinky mode state
-  bool rotaryLedState;
-  int rotaryBlinkyDelay;
+  bool _rotaryLedState;
+  int _rotaryBlinkyDelay;
 
 public:
   InputTaskHandler() {}
 
   bool createTask() override;
+  void setDisplay(bool display);
 
 private:
   void task(void *parameters) override;
@@ -137,7 +140,6 @@ private:
   void changeMode(int mode = -1);
 
   void ack1Setup();
-  void ack1Update();
   bool ack1Command(uint8_t cmd, const uint8_t *data = NULL, size_t len = 0);
   bool ack1Response(uint8_t *data, size_t len);
   void ack1Clear();
@@ -146,17 +148,21 @@ private:
 
   void alphaNumSetup();
   void alphaNumUpdate();
+  void alphaNumClear();
 
   void neoKeySetup();
   void neoKeyUpdate();
+  void neoKeyClear();
   NeoKey1x4Callback neoKeyCallback(keyEvent evt);
   static NeoKey1x4Callback neoKeyCallbackStatic(keyEvent evt);
 
   void neoSliderSetup();
-  void neoSliderUpdate();
+  void neoSliderRead();
+  void neoSliderClear();
 
   void rotarySetup();
   void rotaryUpdate();
+  void rotaryClear();
 };
 
 bool InputTaskHandler::createTask()
@@ -182,18 +188,39 @@ bool InputTaskHandler::createTask()
   return true;
 }
 
+void InputTaskHandler::setDisplay(bool displayState)
+{
+  if (displayState)
+  {
+    ack1Wake();
+  }
+  else
+  {
+    ack1Clear();
+    alphaNumClear();
+    neoKeyClear();
+    neoSliderClear();
+    rotaryClear();
+  }
+}
+
 void InputTaskHandler::task(void *parameters)
 {
   log_d("Starting InputTask");
 
   while (1)
   {
-    ack1Update();
+    if (!_display)
+    {
+      return;
+    }
+
     alphaNumUpdate();
     neoKeyUpdate();
-    neoSliderUpdate();
+    neoSliderRead();
     rotaryUpdate();
-    //update();
+
+    update();
 
     delay(DELAY_MS);
   }
@@ -201,26 +228,66 @@ void InputTaskHandler::task(void *parameters)
 
 void InputTaskHandler::update()
 {
-  // just goes to "screensaver" mode after 30 seconds of inactivity
-  if (!ack1Init || !neoKeyInit || !neoSliderInit || !rotaryInit || mode == Mode::Blinky)
-    return;
-
-  unsigned long now = millis();
-  unsigned long neoKeyLastPressElapsed = now - neoKeyLastPressMillis;
-  unsigned long neoKeyLastReleaseElapsed = now - neoKeyLastReleaseMillis;
-  unsigned long neoSliderLastChangeElapsed = now - neoSliderLastChangeMillis;
-  unsigned long rotaryLastChangeElapsed = now - rotaryLastChangeMillis;
-  unsigned long rotaryLastPressElapsed = now - rotaryLastPressMillis;
-
-  unsigned long shortestElapsed = min(neoKeyLastPressElapsed, neoKeyLastReleaseElapsed);
-  shortestElapsed = min(shortestElapsed, neoSliderLastChangeElapsed);
-  shortestElapsed = min(shortestElapsed, rotaryLastChangeElapsed);
-  shortestElapsed = min(shortestElapsed, rotaryLastPressElapsed);
-
-  if (shortestElapsed > 10 * 1000)
+  if (_mode == Mode::Music)
   {
-    changeMode(Mode::Blinky);
+    if (_neoKeyPressedIndex >= 0)
+    {
+      uint32_t color = wheel(map(_neoKeyPressedIndex, 0, SS_NEOKEY_COUNT, 0, 255));
+      for (uint8_t i = 0; i < _neoSliderPixels.numPixels(); i++)
+      {
+        _neoSliderPixels.setPixelColor(i, color);
+      }
+      _neoSliderPixels.show();
+    }
   }
+  else if (_mode == Mode::Lights)
+  {
+    if (_neoSliderReading != _neoSliderLastReading)
+    {
+      int onCount = map(_neoSliderReading, 0, 1023, 0, SS_NEOSLIDER_LED_COUNT);
+      for (uint8_t i = 0; i < _neoSliderPixels.numPixels(); i++)
+      {
+        _neoSliderPixels.setPixelColor(_neoSliderPixels.numPixels() - i - 1, i < onCount ? wheel(map(i, 0, _neoSliderPixels.numPixels(), 0, 255)) : 0);
+      }
+      _neoSliderPixels.show();
+    }
+  }
+  else if (_mode == Mode::Blinky)
+  {
+    for (int i = 0; i < SS_NEOSLIDER_LED_COUNT; i++)
+    {
+      if (--_neoSliderBlinkyDelay[i] > 0)
+        continue;
+
+      _neoSliderPixelState[i] = !_neoSliderPixelState[i];
+      _neoSliderBlinkyDelay[i] = random(BASE_DELAY, BASE_DELAY * 2);
+
+      uint32_t color = _neoSliderPixelState[i] ? wheel(_rotaryWheelPos + random(0, 16)) : 0;
+      _neoSliderPixels.setPixelColor(i, color);
+    }
+    _neoSliderPixels.show();
+  }
+
+  // // just goes to "screensaver" mode after 30 seconds of inactivity
+  // if (!ack1Init || !neoKeyInit || !neoSliderInit || !rotaryInit || mode == Mode::Blinky)
+  //   return;
+
+  // unsigned long now = millis();
+  // unsigned long neoKeyLastPressElapsed = now - neoKeyLastPressMillis;
+  // unsigned long neoKeyLastReleaseElapsed = now - neoKeyLastReleaseMillis;
+  // unsigned long neoSliderLastChangeElapsed = now - neoSliderLastChangeMillis;
+  // unsigned long rotaryLastChangeElapsed = now - rotaryLastChangeMillis;
+  // unsigned long rotaryLastPressElapsed = now - rotaryLastPressMillis;
+
+  // unsigned long shortestElapsed = min(neoKeyLastPressElapsed, neoKeyLastReleaseElapsed);
+  // shortestElapsed = min(shortestElapsed, neoSliderLastChangeElapsed);
+  // shortestElapsed = min(shortestElapsed, rotaryLastChangeElapsed);
+  // shortestElapsed = min(shortestElapsed, rotaryLastPressElapsed);
+
+  // if (shortestElapsed > 10 * 1000)
+  // {
+  //   changeMode(Mode::Blinky);
+  // }
 }
 
 uint32_t InputTaskHandler::wheel(uint8_t wheelPos)
@@ -241,7 +308,7 @@ uint32_t InputTaskHandler::wheel(uint8_t wheelPos)
 
 void InputTaskHandler::changeMode(int mode)
 {
-  if (!ack1Init || !neoKeyInit || !neoSliderInit || !rotaryInit)
+  if (!_ack1Init || !_neoKeyInit || !_neoSliderInit || !_rotaryInit)
   {
     log_e("Not all components initialized");
     return;
@@ -260,74 +327,74 @@ void InputTaskHandler::changeMode(int mode)
   {
     log_i("Switching to Music mode");
 
-    alphaNum.clear();
+    _alphaNum.clear();
 
     for (int i = 0; i < SS_NEOKEY_COUNT; i++)
     {
-      neoKeyPixelState[i] = false;
-      neoKey.setPixelColor(i, 0x000000);
+      _neoKeyPixelState[i] = false;
+      _neoKey.setPixelColor(i, 0x000000);
     }
 
     for (int i = 0; i < SS_NEOSLIDER_LED_COUNT; i++)
     {
-      neoSliderPixelState[i] = false;
-      neoSliderPixels.setPixelColor(i, 0x000000);
+      _neoSliderPixelState[i] = false;
+      _neoSliderPixels.setPixelColor(i, 0x000000);
     }
 
-    rotaryNeoPixel.setPixelColor(0, 0x000000);
+    _rotaryNeoPixel.setPixelColor(0, 0x000000);
   }
   else if (mode == Lights)
   {
     log_i("Switching to Lights mode");
 
-    alphaNum.clear();
+    _alphaNum.clear();
 
     for (int i = 0; i < SS_NEOKEY_COUNT; i++)
     {
-      neoKeyPixelState[i] = true;
-      neoKey.setPixelColor(i, wheel(map(i, 0, SS_NEOKEY_COUNT, 0, 255)));
+      _neoKeyPixelState[i] = true;
+      _neoKey.setPixelColor(i, wheel(map(i, 0, SS_NEOKEY_COUNT, 0, 255)));
     }
 
-    rotaryNeoPixel.setPixelColor(0, wheel(rotaryWheelPos));
+    _rotaryNeoPixel.setPixelColor(0, wheel(_rotaryWheelPos));
   }
   else if (mode == Blinky)
   {
     log_i("Switching to Blinky mode");
 
-    alphaNum.clear();
+    _alphaNum.clear();
 
-    alphaNumPathIndex = random(0, AlphaNumPathCount);
-    alphaNumBlinkyDelay = 0;
-    alphaNumBlinkyIndex = random(0, AlphaNumPathLengths[alphaNumPathIndex]);
+    _alphaNumPathIndex = random(0, AlphaNumPathCount);
+    _alphaNumBlinkyDelay = 0;
+    _alphaNumBlinkyIndex = random(0, AlphaNumPathLengths[_alphaNumPathIndex]);
 
     for (int i = 0; i < SS_NEOKEY_COUNT; i++)
     {
-      neoKeyPixelState[i] = true;
-      neoKeyBlinkyDelay[i] = random(BASE_DELAY * 5, BASE_DELAY * 10);
-      neoKey.setPixelColor(i, wheel(rotaryWheelPos + random(0, 16)));
+      _neoKeyPixelState[i] = true;
+      _neoKeyBlinkyDelay[i] = random(BASE_DELAY * 5, BASE_DELAY * 10);
+      _neoKey.setPixelColor(i, wheel(_rotaryWheelPos + random(0, 16)));
     }
 
     for (int i = 0; i < SS_NEOSLIDER_LED_COUNT; i++)
     {
-      neoKeyPixelState[i] = true;
-      neoKeyBlinkyDelay[i] = random(BASE_DELAY * 5, BASE_DELAY * 10);
-      neoKey.setPixelColor(i, wheel(rotaryWheelPos + random(0, 32)));
+      _neoKeyPixelState[i] = true;
+      _neoKeyBlinkyDelay[i] = random(BASE_DELAY * 5, BASE_DELAY * 10);
+      _neoKey.setPixelColor(i, wheel(_rotaryWheelPos + random(0, 32)));
     }
 
-    rotaryLedState = true;
-    rotaryBlinkyDelay = random(BASE_DELAY * 5, BASE_DELAY * 10);
-    rotaryNeoPixel.setPixelColor(0, wheel(rotaryWheelPos + random(0, 32)));
+    _rotaryLedState = true;
+    _rotaryBlinkyDelay = random(BASE_DELAY * 5, BASE_DELAY * 10);
+    _rotaryNeoPixel.setPixelColor(0, wheel(_rotaryWheelPos + random(0, 32)));
   }
 
-  alphaNum.writeDisplay();
-  neoKey.show();
-  neoSliderPixels.show();
-  rotaryNeoPixel.show();
+  _alphaNum.writeDisplay();
+  _neoKey.show();
+  _neoSliderPixels.show();
+  _rotaryNeoPixel.show();
 }
 
 void InputTaskHandler::ack1Setup()
 {
-  if (ack1Init)
+  if (_ack1Init)
   {
     log_w("ACK1 already initialized");
     return;
@@ -339,41 +406,22 @@ void InputTaskHandler::ack1Setup()
     return;
   }
 
-  ack1Init = true;
+  _ack1Init = true;
   if (!ack1Command(ACK1_STATUS_CMD))
   {
-    ack1Init = false;
+    _ack1Init = false;
     log_e("ACK1 not found");
     return;
   }
 
-  ack1Command(ACK1_LEDSCROLL_CMD, (uint8_t *)ack1BootMessage, strlen(ack1BootMessage));
+  ack1Command(ACK1_LEDSCROLL_CMD, (uint8_t *)_ack1BootMessage, strlen(_ack1BootMessage));
   log_d("ACK1 status: %d", ack1Command(ACK1_STATUS_CMD));
-  ack1Display = true;
-}
-
-void InputTaskHandler::ack1Update()
-{
-  if (!ack1Init)
-  {
-    return;
-  }
-
-  if (display && !ack1Display)
-  {
-    ack1Command(ACK1_LEDSCROLL_CMD, (uint8_t *)ack1Message, strlen(ack1Message));
-    ack1Display = true;
-  }
-  else if (!display && ack1Display)
-  {
-    ack1Clear();
-    ack1Display = false;
-  }
+  _ack1Display = true;
 }
 
 bool InputTaskHandler::ack1Command(uint8_t cmd, const uint8_t *data, size_t len)
 {
-  if (!ack1Init)
+  if (!_ack1Init)
   {
     log_e("ACK1 not initialized!");
     return false;
@@ -389,14 +437,14 @@ bool InputTaskHandler::ack1Command(uint8_t cmd, const uint8_t *data, size_t len)
   case ACK1_LEDCLR_CMD:
     log_d("Sending LEDCLR command");
     Wire.write(ACK1_LEDCLR_CMD);
-    ack1Display = false;
+    _ack1Display = false;
     break;
   case ACK1_LEDSCROLL_CMD:
     log_d("Sending LEDSCROLL command");
     Wire.write(ACK1_LEDSCROLL_CMD);
     Wire.write(static_cast<uint8_t>(len));
     Wire.write(data, len);
-    ack1Display = true;
+    _ack1Display = true;
     break;
   case ACK1_TONEON_CMD:
     log_d("Sending TONEON command");
@@ -515,127 +563,126 @@ void InputTaskHandler::ack1Tone(uint16_t freq)
 
 void InputTaskHandler::ack1Wake()
 {
-  ack1Command(ACK1_LEDSCROLL_CMD, (uint8_t *)ack1Message, strlen(ack1Message));
+  ack1Command(ACK1_LEDSCROLL_CMD, (uint8_t *)_ack1Message, strlen(_ack1Message));
 }
 
 void InputTaskHandler::alphaNumSetup()
 {
-  if (alphaNumInit)
+  if (_alphaNumInit)
   {
     log_w("AlphaNum already initialized");
     return;
   }
 
-  if (!alphaNum.begin(ALPHANUM_ADDR))
+  if (!_alphaNum.begin(ALPHANUM_ADDR))
   {
     log_e("Couldn't find AlphaNum seesaw on default address");
     return;
   }
 
-  alphaNum.writeDigitRaw(3, 0x0);
-  alphaNum.writeDigitRaw(0, 0xFFFF);
-  alphaNum.writeDisplay();
+  _alphaNum.writeDigitRaw(3, 0x0);
+  _alphaNum.writeDigitRaw(0, 0xFFFF);
+  _alphaNum.writeDisplay();
   delay(200);
-  alphaNum.writeDigitRaw(0, 0x0);
-  alphaNum.writeDigitRaw(1, 0xFFFF);
-  alphaNum.writeDisplay();
+  _alphaNum.writeDigitRaw(0, 0x0);
+  _alphaNum.writeDigitRaw(1, 0xFFFF);
+  _alphaNum.writeDisplay();
   delay(200);
-  alphaNum.writeDigitRaw(1, 0x0);
-  alphaNum.writeDigitRaw(2, 0xFFFF);
-  alphaNum.writeDisplay();
+  _alphaNum.writeDigitRaw(1, 0x0);
+  _alphaNum.writeDigitRaw(2, 0xFFFF);
+  _alphaNum.writeDisplay();
   delay(200);
-  alphaNum.writeDigitRaw(2, 0x0);
-  alphaNum.writeDigitRaw(3, 0xFFFF);
-  alphaNum.writeDisplay();
+  _alphaNum.writeDigitRaw(2, 0x0);
+  _alphaNum.writeDigitRaw(3, 0xFFFF);
+  _alphaNum.writeDisplay();
   delay(200);
 
-  alphaNum.clear();
-  alphaNum.writeDisplay();
+  _alphaNum.clear();
+  _alphaNum.writeDisplay();
 
-  alphaNumInit = true;
+  _alphaNumInit = true;
   log_i("AlphaNum initialized");
 }
 
 void InputTaskHandler::alphaNumUpdate()
 {
-  if (!alphaNumInit)
+  if (!_alphaNumInit)
   {
     return;
   }
 
-  if (!display)
+  if (_mode == Mode::Music)
   {
-    alphaNum.clear();
-    alphaNum.writeDisplay();
-    return;
-  }
-
-  if (mode == Mode::Music)
-  {
-    if (neoKeyPressedIndex != -1)
+    if (_neoKeyPressedIndex != -1)
     {
-      if (!alphaNumUpdated)
+      if (!_alphaNumUpdated)
       {
         // shift tone name from the right into buffer
-        const char *toneName = BaseToneNames[neoKeyPressedIndex % 8];
-        alphaNumBuffer[0] = alphaNumBuffer[1];
-        alphaNumBuffer[1] = alphaNumBuffer[2];
-        alphaNumBuffer[2] = alphaNumBuffer[3];
-        alphaNumBuffer[3] = toneName[0]; // ignore the note letter for now
-        alphaNum.writeDigitAscii(0, alphaNumBuffer[0]);
-        alphaNum.writeDigitAscii(1, alphaNumBuffer[1]);
-        alphaNum.writeDigitAscii(2, alphaNumBuffer[2]);
-        alphaNum.writeDigitAscii(3, alphaNumBuffer[3]);
-        alphaNum.writeDisplay();
-        alphaNumUpdated = true;
+        const char *toneName = _BaseToneNames[_neoKeyPressedIndex % 8];
+        _alphaNumBuffer[0] = _alphaNumBuffer[1];
+        _alphaNumBuffer[1] = _alphaNumBuffer[2];
+        _alphaNumBuffer[2] = _alphaNumBuffer[3];
+        _alphaNumBuffer[3] = toneName[0]; // ignore the note letter for now
+        _alphaNum.writeDigitAscii(0, _alphaNumBuffer[0]);
+        _alphaNum.writeDigitAscii(1, _alphaNumBuffer[1]);
+        _alphaNum.writeDigitAscii(2, _alphaNumBuffer[2]);
+        _alphaNum.writeDigitAscii(3, _alphaNumBuffer[3]);
+        _alphaNum.writeDisplay();
+        _alphaNumUpdated = true;
       }
     }
-    else if (neoKeyPressedIndex == -1)
+    else if (_neoKeyPressedIndex == -1)
     {
-      if (alphaNumUpdated)
+      if (_alphaNumUpdated)
       {
-        alphaNumUpdated = false;
+        _alphaNumUpdated = false;
       }
     }
   }
-  else if (mode == Mode::Lights)
+  else if (_mode == Mode::Lights)
   {
     // alphaNum.print(neoSliderReading);
     // alphaNum.writeDisplay();
   }
-  else if (mode == Mode::Blinky)
+  else if (_mode == Mode::Blinky)
   {
-    if (--alphaNumBlinkyDelay > 0)
+    if (--_alphaNumBlinkyDelay > 0)
       return;
 
-    alphaNum.clear();
-    alphaNumBuffer[3] = alphaNumBuffer[2] = alphaNumBuffer[1] = alphaNumBuffer[0] = 0;
+    _alphaNum.clear();
+    _alphaNumBuffer[3] = _alphaNumBuffer[2] = _alphaNumBuffer[1] = _alphaNumBuffer[0] = 0;
     for (int i = 0; i < 3; i++)
     {
-      auto index = (alphaNumBlinkyIndex + i) % AlphaNumPathLengths[alphaNumPathIndex];
-      const auto [digit, bitmask] = AlphaNumPaths[alphaNumPathIndex][index];
-      alphaNumBuffer[digit] |= bitmask;
+      auto index = (_alphaNumBlinkyIndex + i) % AlphaNumPathLengths[_alphaNumPathIndex];
+      const auto [digit, bitmask] = AlphaNumPaths[_alphaNumPathIndex][index];
+      _alphaNumBuffer[digit] |= bitmask;
     }
-    alphaNum.writeDigitRaw(0, alphaNumBuffer[0]);
-    alphaNum.writeDigitRaw(1, alphaNumBuffer[1]);
-    alphaNum.writeDigitRaw(2, alphaNumBuffer[2]);
-    alphaNum.writeDigitRaw(3, alphaNumBuffer[3]);
-    alphaNum.writeDisplay();
+    _alphaNum.writeDigitRaw(0, _alphaNumBuffer[0]);
+    _alphaNum.writeDigitRaw(1, _alphaNumBuffer[1]);
+    _alphaNum.writeDigitRaw(2, _alphaNumBuffer[2]);
+    _alphaNum.writeDigitRaw(3, _alphaNumBuffer[3]);
+    _alphaNum.writeDisplay();
 
-    alphaNumBlinkyIndex = (alphaNumBlinkyIndex + 1) % AlphaNumPathLengths[alphaNumPathIndex];
-    alphaNumBlinkyDelay = 6;
+    _alphaNumBlinkyIndex = (_alphaNumBlinkyIndex + 1) % AlphaNumPathLengths[_alphaNumPathIndex];
+    _alphaNumBlinkyDelay = 6;
   }
+}
+
+void InputTaskHandler::alphaNumClear()
+{
+  _alphaNum.clear();
+  _alphaNum.writeDisplay();
 }
 
 void InputTaskHandler::neoKeySetup()
 {
-  if (neoKeyInit)
+  if (_neoKeyInit)
   {
     log_w("NeoKey already initialized");
     return;
   }
 
-  if (!neoKey.begin())
+  if (!_neoKey.begin())
   {
     log_e("Couldn't find NeoKey seesaw(s) on default address(es)");
     return;
@@ -643,54 +690,44 @@ void InputTaskHandler::neoKeySetup()
 
   for (uint16_t i = 0; i < SS_NEOKEY_COUNT; i++)
   {
-    neoKey.setPixelColor(i, 0x808080);
-    neoKey.show();
+    _neoKey.setPixelColor(i, 0x808080);
+    _neoKey.show();
     delay(50);
   }
   for (uint16_t i = 0; i < SS_NEOKEY_COUNT; i++)
   {
-    neoKey.setPixelColor(i, 0x000000);
-    neoKey.show();
+    _neoKey.setPixelColor(i, 0x000000);
+    _neoKey.show();
     delay(50);
   }
 
   for (int i = 0; i < SS_NEOKEY_COUNT; i++)
   {
-    neoKey.registerCallback(i, InputTaskHandler::neoKeyCallbackStatic);
+    _neoKey.registerCallback(i, InputTaskHandler::neoKeyCallbackStatic);
   }
 
   log_i("NeoKey initialized");
-  neoKeyInit = true;
+  _neoKeyInit = true;
 }
 
 void InputTaskHandler::neoKeyUpdate()
 {
-  if (!neoKeyInit)
+  if (!_neoKeyInit)
   {
     return;
   }
 
-  neoKey.read();
-
-  if (!display)
-  {
-    for (int i = 0; i < SS_NEOKEY_COUNT; i++)
-    {
-      neoKey.setPixelColor(i, 0x000000);
-    }
-    neoKey.show();
-    return;
-  }
+  _neoKey.read();
 
   // debounce after key press
-  if (millis() - neoKeyLastPressMillis < 100 || millis() - neoKeyLastReleaseMillis < 100)
+  if (millis() - _neoKeyLastPressMillis < 100 || millis() - _neoKeyLastReleaseMillis < 100)
   {
     return;
   }
 
-  if (mode == Mode::Lights)
+  if (_mode == Mode::Lights)
   {
-    if (neoSliderReading != neoSliderLastReading)
+    if (_neoSliderReading != _neoSliderLastReading)
     {
       // int onCount = map(neoSliderReading, 0, 1023, 0, SS_NEOKEY_COUNT);
       // for (int i = 0; i < SS_NEOKEY_COUNT; i++)
@@ -698,27 +735,36 @@ void InputTaskHandler::neoKeyUpdate()
       //   neoKey.setPixelColor(i, i < onCount ? wheel(map(i, 0, SS_NEOKEY_COUNT, 0, 255)) : 0);
       // }
       // neoKey.show();
-      auto keyIndex = map(neoSliderReading, 0, 1023, 0, SS_NEOKEY_COUNT);
-      auto color = neoSliderReading > neoSliderLastReading ? wheel(map(keyIndex, 0, SS_NEOKEY_COUNT, 0, 255)) : 0;
-      neoKey.setPixelColor(keyIndex, color);
-      neoKey.show();
+      auto keyIndex = map(_neoSliderReading, 0, 1023, 0, SS_NEOKEY_COUNT);
+      auto color = _neoSliderReading > _neoSliderLastReading ? wheel(map(keyIndex, 0, SS_NEOKEY_COUNT, 0, 255)) : 0;
+      _neoKey.setPixelColor(keyIndex, color);
+      _neoKey.show();
     }
   }
-  else if (mode == Mode::Blinky)
+  else if (_mode == Mode::Blinky)
   {
     for (int i = 0; i < SS_NEOKEY_COUNT; i++)
     {
-      if (--neoKeyBlinkyDelay[i] > 0)
+      if (--_neoKeyBlinkyDelay[i] > 0)
         continue;
 
-      neoKeyPixelState[i] = !neoKeyPixelState[i];
-      neoKeyBlinkyDelay[i] = random(BASE_DELAY, BASE_DELAY * 2);
+      _neoKeyPixelState[i] = !_neoKeyPixelState[i];
+      _neoKeyBlinkyDelay[i] = random(BASE_DELAY, BASE_DELAY * 2);
 
-      uint32_t color = neoKeyPixelState[i] ? wheel(rotaryWheelPos + random(0, 16)) : 0;
-      neoKey.setPixelColor(i, color);
+      uint32_t color = _neoKeyPixelState[i] ? wheel(_rotaryWheelPos + random(0, 16)) : 0;
+      _neoKey.setPixelColor(i, color);
     }
-    neoKey.show();
+    _neoKey.show();
   }
+}
+
+void InputTaskHandler::neoKeyClear()
+{
+  for (int i = 0; i < SS_NEOKEY_COUNT; i++)
+  {
+    _neoKey.setPixelColor(i, 0x000000);
+  }
+  _neoKey.show();
 }
 
 // I hate this
@@ -735,207 +781,159 @@ NeoKey1x4Callback InputTaskHandler::neoKeyCallback(keyEvent evt)
   uint8_t key = evt.bit.NUM;
   uint32_t color = 0x0; // default event to turn LED off
   uint16_t tone = 0x0;  // default event to turn tone off
-  neoKeyPressedIndex = -1;
+  _neoKeyPressedIndex = -1;
 
   if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING)
   {
-    neoKeyPressedIndex = key;
-    neoKeyLastPressMillis = millis();
+    _neoKeyPressedIndex = key;
+    _neoKeyLastPressMillis = millis();
   }
   else if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_FALLING)
   {
-    neoKeyLastReleaseMillis = millis();
+    _neoKeyLastReleaseMillis = millis();
   }
 
-  if (mode == Mode::Music)
+  if (_mode == Mode::Music)
   {
     if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING)
     {
       color = wheel(map(key, 0, SS_NEOKEY_COUNT, 0, 255)); // TODO also eventually show note name on display
-      tone = BaseToneFrequencies[key % 8];
+      tone = _BaseToneFrequencies[key % 8];
     }
   }
-  else if (mode == Mode::Lights)
+  else if (_mode == Mode::Lights)
   {
     if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING)
     {
-      neoKeyPixelState[key] = !neoKeyPixelState[key];
+      _neoKeyPixelState[key] = !_neoKeyPixelState[key];
     }
 
-    if (neoKeyPixelState[key])
+    if (_neoKeyPixelState[key])
     {
       color = wheel(map(key, 0, SS_NEOKEY_COUNT, 0, 255));
     }
   }
-  else if (mode == Mode::Blinky)
+  else if (_mode == Mode::Blinky)
   {
     if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING)
     {
-      neoKeyBlinkyDelay[key] = 1000;
+      _neoKeyBlinkyDelay[key] = 1000;
     }
   }
 
   if (tone > 0)
   {
-    int pitchModifier = map(neoSliderReading, 0, 1023, -200, 200);
+    int pitchModifier = map(_neoSliderReading, 0, 1023, -200, 200);
     tone += pitchModifier;
   }
 
-  neoKey.setPixelColor(key, color);
-  neoKey.show();
+  _neoKey.setPixelColor(key, color);
+  _neoKey.show();
   ack1Tone(tone);
 }
 
 void InputTaskHandler::neoSliderSetup()
 {
-  if (neoSliderInit)
+  if (_neoSliderInit)
   {
     log_w("NeoSlider already initialized");
     return;
   }
 
-  if (!neoSliderSs.begin(SS_NEOSLIDER_ADDR) || !neoSliderPixels.begin(SS_NEOSLIDER_ADDR))
+  if (!_neoSliderSs.begin(SS_NEOSLIDER_ADDR) || !_neoSliderPixels.begin(SS_NEOSLIDER_ADDR))
   {
     log_e("Couldn't find NeoSlider seesaw on default address");
     return;
   }
 
-  uint16_t version = neoSliderSs.getVersion() >> 16;
+  uint16_t version = _neoSliderSs.getVersion() >> 16;
   if (version != 5295)
   {
     log_e("Wrong seesaw firmware for slider loaded: %d", version);
     return;
   }
 
-  neoSliderPixels.setBrightness(255);
-  neoSliderPixels.show();
-  neoSliderInit = true;
+  _neoSliderPixels.setBrightness(255);
+  _neoSliderPixels.show();
+  _neoSliderInit = true;
 
   log_i("NeoSlider initialized");
 }
 
-void InputTaskHandler::neoSliderUpdate()
+void InputTaskHandler::neoSliderRead()
 {
-  if (!neoSliderInit)
+  if (!_neoSliderInit)
   {
     return;
   }
 
-  if (!display)
-  {
-    for (int i = 0; i < SS_NEOSLIDER_LED_COUNT; i++)
-    {
-      neoSliderPixels.setPixelColor(i, 0x000000);
-    }
-    neoSliderPixels.show();
-    return;
-  }
+  _neoSliderLastReading = _neoSliderReading;
+  _neoSliderReading = 1023 - _neoSliderSs.analogRead(SS_NEOSLIDER_SLD_PIN); // invert slider reading
 
-  neoSliderLastReading = neoSliderReading;
-  neoSliderReading = 1023 - neoSliderSs.analogRead(SS_NEOSLIDER_SLD_PIN); // invert slider reading
-
-  if (neoSliderReading != neoSliderLastReading)
+  if (_neoSliderReading != _neoSliderLastReading)
   {
-    neoSliderLastChangeMillis = millis(); // TODO: might need debounce?
+    _neoSliderLastChangeMillis = millis(); // TODO: might need debounce?
   }
+}
 
-  if (mode == Mode::Music)
+void InputTaskHandler::neoSliderClear()
+{
+  for (int i = 0; i < SS_NEOSLIDER_LED_COUNT; i++)
   {
-    if (neoKeyPressedIndex >= 0)
-    {
-      uint32_t color = wheel(map(neoKeyPressedIndex, 0, SS_NEOKEY_COUNT, 0, 255));
-      for (uint8_t i = 0; i < neoSliderPixels.numPixels(); i++)
-      {
-        neoSliderPixels.setPixelColor(i, color);
-      }
-      neoSliderPixels.show();
-    }
+    _neoSliderPixels.setPixelColor(i, 0x000000);
   }
-  else if (mode == Mode::Lights)
-  {
-    if (neoSliderReading != neoSliderLastReading)
-    {
-      int onCount = map(neoSliderReading, 0, 1023, 0, SS_NEOSLIDER_LED_COUNT);
-      for (uint8_t i = 0; i < neoSliderPixels.numPixels(); i++)
-      {
-        neoSliderPixels.setPixelColor(neoSliderPixels.numPixels() - i - 1, i < onCount ? wheel(map(i, 0, neoSliderPixels.numPixels(), 0, 255)) : 0);
-      }
-      neoSliderPixels.show();
-    }
-  }
-  else if (mode == Mode::Blinky)
-  {
-    for (int i = 0; i < SS_NEOSLIDER_LED_COUNT; i++)
-    {
-      if (--neoSliderBlinkyDelay[i] > 0)
-        continue;
-
-      neoSliderPixelState[i] = !neoSliderPixelState[i];
-      neoSliderBlinkyDelay[i] = random(BASE_DELAY, BASE_DELAY * 2);
-
-      uint32_t color = neoSliderPixelState[i] ? wheel(rotaryWheelPos + random(0, 16)) : 0;
-      neoSliderPixels.setPixelColor(i, color);
-    }
-    neoSliderPixels.show();
-  }
+  _neoSliderPixels.show();
 }
 
 void InputTaskHandler::rotarySetup()
 {
-  if (rotaryInit)
+  if (_rotaryInit)
   {
     log_w("Rotary already initialized");
     return;
   }
 
-  if (!rotarySs.begin(SS_ROTARY_ADDR) || !rotaryNeoPixel.begin(SS_ROTARY_ADDR))
+  if (!_rotarySs.begin(SS_ROTARY_ADDR) || !_rotaryNeoPixel.begin(SS_ROTARY_ADDR))
   {
     log_e("Couldn't find rotary seesaw on default address");
     return;
   }
 
-  uint32_t version = ((rotarySs.getVersion() >> 16) & 0xFFFF);
+  uint32_t version = ((_rotarySs.getVersion() >> 16) & 0xFFFF);
   if (version != 4991)
   {
     log_e("Wrong seesaw firmware for rotary loaded: %d", version);
     return;
   }
 
-  rotaryNeoPixel.setBrightness(20);
-  rotaryNeoPixel.show();
-  rotarySs.pinMode(SS_ROTARY_BTN_PIN, INPUT_PULLUP);
-  rotaryEncPos = rotarySs.getEncoderPosition();
+  _rotaryNeoPixel.setBrightness(20);
+  _rotaryNeoPixel.show();
+  _rotarySs.pinMode(SS_ROTARY_BTN_PIN, INPUT_PULLUP);
+  _rotaryEncPos = _rotarySs.getEncoderPosition();
 
   // Serial.println("Turning on interrupts");
   // delay(10);
   // rotarySs.setGPIOInterrupts((uint32_t)1 << SS_ROTARY_ENC_PIN, 1);
   // rotarySs.enableEncoderInterrupt();
 
-  rotaryInit = true;
+  _rotaryInit = true;
 
   log_i("Rotary initialized");
 }
 
 void InputTaskHandler::rotaryUpdate()
 {
-  if (!rotaryInit)
+  if (!_rotaryInit)
   {
     return;
   }
 
-  if (!display)
+  if (!_rotarySs.digitalRead(SS_ROTARY_BTN_PIN))
   {
-    rotaryNeoPixel.setPixelColor(0, 0x000000);
-    rotaryNeoPixel.show();
-    return;
-  }
-
-  if (!rotarySs.digitalRead(SS_ROTARY_BTN_PIN))
-  {
-    if (!rotaryIsPressed && millis() - rotaryLastPressMillis > 100)
+    if (!_rotaryIsPressed && millis() - _rotaryLastPressMillis > 100)
     {
-      rotaryIsPressed = true;
-      rotaryLastPressMillis = millis();
+      _rotaryIsPressed = true;
+      _rotaryLastPressMillis = millis();
       changeMode();
       ack1Tone(1000);
       delay(100);
@@ -944,48 +942,54 @@ void InputTaskHandler::rotaryUpdate()
   }
   else
   {
-    rotaryIsPressed = false;
+    _rotaryIsPressed = false;
   }
 
-  int32_t newEncPos = rotarySs.getEncoderPosition();
-  if (rotaryEncPos != newEncPos)
+  int32_t newEncPos = _rotarySs.getEncoderPosition();
+  if (_rotaryEncPos != newEncPos)
   {
     // log_d(newEncPos);
-    rotaryWheelPos = (newEncPos * 5) & 0xFF;
-    rotaryNeoPixel.setPixelColor(0, wheel(rotaryWheelPos)); // 3 rotations for full cycle with 24 step encoder?
-    rotaryNeoPixel.show();
-    rotaryEncPos = newEncPos;
-    rotaryLastChangeMillis = millis();
+    _rotaryWheelPos = (newEncPos * 5) & 0xFF;
+    _rotaryNeoPixel.setPixelColor(0, wheel(_rotaryWheelPos)); // 3 rotations for full cycle with 24 step encoder?
+    _rotaryNeoPixel.show();
+    _rotaryEncPos = newEncPos;
+    _rotaryLastChangeMillis = millis();
   }
 
-  if (mode == Mode::Music)
+  if (_mode == Mode::Music)
   {
-    if (neoKeyPressedIndex >= 0)
+    if (_neoKeyPressedIndex >= 0)
     {
-      uint32_t color = wheel(map(neoKeyPressedIndex, 0, SS_NEOKEY_COUNT, 0, 255));
-      rotaryNeoPixel.setPixelColor(0, color);
-      rotaryNeoPixel.show();
+      uint32_t color = wheel(map(_neoKeyPressedIndex, 0, SS_NEOKEY_COUNT, 0, 255));
+      _rotaryNeoPixel.setPixelColor(0, color);
+      _rotaryNeoPixel.show();
     }
   }
-  else if (mode == Mode::Lights)
+  else if (_mode == Mode::Lights)
   {
-    if (neoKeyPressedIndex >= 0)
+    if (_neoKeyPressedIndex >= 0)
     {
-      uint32_t color = wheel(map(neoKeyPressedIndex, 0, SS_NEOKEY_COUNT, 0, 255));
-      rotaryNeoPixel.setPixelColor(0, color);
-      rotaryNeoPixel.show();
+      uint32_t color = wheel(map(_neoKeyPressedIndex, 0, SS_NEOKEY_COUNT, 0, 255));
+      _rotaryNeoPixel.setPixelColor(0, color);
+      _rotaryNeoPixel.show();
     }
   }
-  else if (mode == Mode::Blinky)
+  else if (_mode == Mode::Blinky)
   {
-    if (!rotaryIsPressed && --rotaryBlinkyDelay <= 0)
+    if (!_rotaryIsPressed && --_rotaryBlinkyDelay <= 0)
     {
-      rotaryLedState = !rotaryLedState;
-      rotaryBlinkyDelay = random(BASE_DELAY, BASE_DELAY * 2);
+      _rotaryLedState = !_rotaryLedState;
+      _rotaryBlinkyDelay = random(BASE_DELAY, BASE_DELAY * 2);
 
-      uint32_t color = rotaryLedState ? wheel(rotaryWheelPos + random(0, 16)) : 0;
-      rotaryNeoPixel.setPixelColor(0, color);
-      rotaryNeoPixel.show();
+      uint32_t color = _rotaryLedState ? wheel(_rotaryWheelPos + random(0, 16)) : 0;
+      _rotaryNeoPixel.setPixelColor(0, color);
+      _rotaryNeoPixel.show();
     }
   }
+}
+
+void InputTaskHandler::rotaryClear()
+{
+  _rotaryNeoPixel.setPixelColor(0, 0x000000);
+  _rotaryNeoPixel.show();
 }

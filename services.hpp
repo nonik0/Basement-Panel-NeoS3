@@ -6,6 +6,7 @@
 #include <WebServer.h>
 #include <WiFi.h>
 
+#include "input.h" // TODO: decouple with callback to display
 #include "secrets.h"
 
 const char *HOSTNAME = "Basement-Panel-NeoS3";
@@ -13,8 +14,7 @@ const char *hostname = "basement-panel-neos3";
 
 WebServer restServer(80);
 extern bool display;
-extern void ack1Wake();
-extern void ack1Clear();
+extern InputTaskHandler inputTask;
 
 void wifiSetup()
 {
@@ -111,7 +111,7 @@ void mDnsSetup()
 void restIndex()
 {
   log_i("Serving index.html");
-  restServer.send(200, "text/plain", "Basement-Panel-Xiao");
+  restServer.send(200, "text/plain", HOSTNAME);
   log_i("Served index.html");
 }
 
@@ -125,10 +125,12 @@ void restDisplay()
     if (body == "off")
     {
       display = false;
+      inputTask.setDisplay(false);
     }
     else if (body == "on")
     {
       display = true;
+      inputTask.setDisplay(true);
     }
     else
     {
@@ -139,7 +141,6 @@ void restDisplay()
 
   restServer.send(200, "text/plain", display ? "on" : "off");
 }
-
 
 void restSetup()
 {
