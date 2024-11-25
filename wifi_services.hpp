@@ -3,156 +3,206 @@
 #include <Arduino.h>
 #include <ArduinoOTA.h>
 #include <ESPmDNS.h>
+#include <vector>
 #include <WebServer.h>
 #include <WiFi.h>
 
 #include "secrets.h"
 
+using namespace std;
+
 class WifiServices
 {
 private:
-  WebServer _restServer;
+  using SetDisplayCallback = std::function<void(bool)>;
+  const int ConnectionTimeoutMs = 10 * 1000;
+  const int StatusCheckIntervalMs = 60 * 1000;
 
+  const char *_hostname;
+  const char *_hostnameLower;
   int _disconnectCount = 0;
-  long _statusCheckDelayMs = 0;
+  unsigned long _lastStatusCheckMs = 0;
+  ArduinoOTAClass _ota;
+  WebServer _restServer;
+  vector<SetDisplayCallback> _setDisplayCallbacks;
 
 public:
   void setup(const char *hostname);
-  void start()
-  {
-    // xTaskCreatePinnedToCore(this->task, "WifiServices", 8192, NULL, 1, NULL, 1);
-  }
+  void createTask();
+  void registerSetDisplayCallback(SetDisplayCallback callback);
 
 private:
   void task();
   void checkWifiStatus();
 
-  void wifiSetup();
+  bool wifiSetup();
   void otaSetup();
   void mDnsSetup();
+  void restSetup();
 
   void restIndex();
   void restDisplay();
-  void restSetup();
 };
 
 void WifiServices::setup(const char *hostname)
 {
-  log_i("Starting setup...");
+  log_i("Setting up Wifi services for %s", hostname);
 
-  wifiSetup();
+  _hostname = hostname;
+  _hostnameLower = strdup(hostname);
+  char *p = (char *)(_hostnameLower);
+  while (*p)
+  {
+    *p = tolower(*p);
+    p++;
+  }
+
+  if (!wifiSetup())
+  {
+    return;
+  }
+
   mDnsSetup();
   otaSetup();
   restSetup();
 
-  log_i("Setup complete.");
+  log_i("WiFi services setup complete");
+}
+
+void WifiServices::createTask()
+{
+  log_i("Starting WifiServicesTask");
+
+  xTaskCreatePinnedToCore(
+      [](void *p)
+      { ((WifiServices *)p)->task(); },
+      "WifiServicesTask",
+      8192,
+      this,
+      100, // lower priority than other tasks
+      NULL,
+      1); // Core 1
+}
+
+void WifiServices::registerSetDisplayCallback(SetDisplayCallback callback)
+{
+  _setDisplayCallbacks.push_back(callback);
 }
 
 void WifiServices::task()
 {
   while (1)
   {
-    ArduinoOTA.handle();
-    _restServer.handleClient();
     checkWifiStatus();
+    _ota.handle();
+    _restServer.handleClient();
+
     delay(10);
   }
 }
 
-void WifiServices::wifiSetup()
-{
-  log_i("Wifi setting up...");
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  while (WiFi.waitForConnectResult() != WL_CONNECTED)
-  {
-    log_e("Connection Failed! Rebooting...");
-    delay(5000);
-    ESP.restart();
-  }
-
-  log_i("Wifi ready, IP address: %s", WiFi.localIP().toString().c_str());
-}
-
 void WifiServices::checkWifiStatus()
 {
-  if (_statusCheckDelayMs < 0)
+  if (millis() - _lastStatusCheckMs > StatusCheckIntervalMs)
   {
+    _lastStatusCheckMs = millis();
+
     try
     {
       if (WiFi.status() != WL_CONNECTED)
       {
-        Serial.println("Reconnecting to WiFi...");
+        _disconnectCount++;
+
+        log_w("Wifi disconnecting, attempting to reconnect");
         WiFi.disconnect();
         WiFi.reconnect();
-        _disconnectCount++;
-        Serial.println("Reconnected to WiFi");
+        log_w("Reconnected to WiFi");
       }
     }
     catch (const std::exception &e)
     {
-      Serial.println("Wifi error:" + String(e.what()));
-      _statusCheckDelayMs = 10 * 60 * 1000; // 10 minutes
+      log_e("Wifi error: %s", String(e.what()));
     }
-
-    _statusCheckDelayMs = 60 * 1000; // 1 minute
   }
+}
+
+bool WifiServices::wifiSetup()
+{
+  log_i("Wifi setting up...");
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+
+  unsigned long startMs = millis();
+  while (WiFi.waitForConnectResult() != WL_CONNECTED && millis() - startMs < ConnectionTimeoutMs)
+    ;
+
+  if (WiFi.status() != WL_CONNECTED)
+  {
+    log_e("Wifi failed to connect after %d ms", ConnectionTimeoutMs);
+    return false;
+  }
+
+  log_i("Wifi setup complete, IP address: %s", WiFi.localIP().toString().c_str());
+  return true;
 }
 
 void WifiServices::otaSetup()
 {
   log_i("OTA setting up...");
 
-  // ArduinoOTA.setPort(3232);
-  ArduinoOTA.setHostname(HOSTNAME);
+  _ota = ArduinoOTA; // use the global instance
 
-  ArduinoOTA
-      .onStart([]()
-               {
-        String type;
-        if (ArduinoOTA.getCommand() == U_FLASH)
-          type = "sketch";
-        else  // U_SPIFFS
-          type = "filesystem";
+  _ota.setHostname(_hostname);
+  //_ota.setPasswordHash(OTA_PASS_HASH); TODO: add password hash based off IP?
 
-        Serial.println("Start updating " + type); })
+  _ota
+      .onStart([this]()
+               { log_i("Start updating %s", _ota.getCommand() == U_FLASH ? "sketch" : "filesystem"); })
       .onEnd([]()
-             { Serial.println("\nEnd"); })
+             { log_i("\nEnd"); })
       .onProgress([](unsigned int progress, unsigned int total)
-                  { Serial.printf("Progress: %u%%\r", (progress / (total / 100))); })
+                  { log_i("Progress: %u%%\r", (progress / (total / 100))); })
       .onError([](ota_error_t error)
                {
-        Serial.printf("Error[%u]: ", error);
-        if (error == OTA_AUTH_ERROR)
-          log_e("Auth Failed");
-        else if (error == OTA_BEGIN_ERROR)
-          log_e("Begin Failed");
-        else if (error == OTA_CONNECT_ERROR)
-          log_e("Connect Failed");
-        else if (error == OTA_RECEIVE_ERROR)
-          log_e("Receive Failed");
-        else if (error == OTA_END_ERROR)
-          log_e("End Failed"); });
-  ArduinoOTA.begin();
+        switch(error) {
+          case OTA_AUTH_ERROR:
+            log_e("Error[%u]: Auth Failed", error);
+            break;
+          case OTA_BEGIN_ERROR:
+            log_e("Error[%u]: Begin Failed", error);
+            break;
+          case OTA_CONNECT_ERROR:
+            log_e("Error[%u]: Connect Failed", error);
+            break;
+          case OTA_RECEIVE_ERROR:
+            log_e("Error[%u]: Receive Failed", error);
+            break;
+          case OTA_END_ERROR:
+            log_e("Error[%u]: End Failed", error);
+            break;
+        } });
 
-  log_i("OTA setup complete.");
+  _ota.begin();
+
+  log_i("OTA setup complete");
 }
 
 void WifiServices::mDnsSetup()
 {
-  if (!MDNS.begin(hostname))
+  if (!MDNS.begin(_hostnameLower))
   {
-    log_e("Error setting up mDNS responder!");
-
+    log_e("Error setting up mDNS!");
     return;
   }
-  log_i("mDNS responder started");
+
+  log_i("mDNS setup complete");
 }
 
 void WifiServices::restIndex()
 {
   log_i("Serving index.html");
-  _restServer.send(200, "text/plain", HOSTNAME);
+  _restServer.send(200, "text/plain", _hostname);
   log_i("Served index.html");
 }
 
@@ -163,31 +213,42 @@ void WifiServices::restDisplay()
     String body = _restServer.arg("plain");
     body.toLowerCase();
 
-    if (body == "off")
+    bool displayState;
+    bool isValid = false;
+    if (body == "off" || body == "false")
     {
-      display = false;
-      inputTask.setDisplay(false);
+      displayState = false;
+      isValid = true;
     }
-    else if (body == "on")
+    else if (body == "on" || body == "true")
     {
-      display = true;
-      inputTask.setDisplay(true);
+      displayState = true;
+      isValid = true;
     }
-    else
+
+    if (!isValid)
     {
       _restServer.send(400, "text/plain", body);
       return;
     }
+
+    for (auto setDisplayCallback : _setDisplayCallbacks)
+    {
+      setDisplayCallback(displayState);
+    }
+    _restServer.send(200, "text/plain", displayState ? "on" : "off");
   }
 
-  _restServer.send(200, "text/plain", display ? "on" : "off");
+  _restServer.send(200, "text/plain", "TODO");
 }
 
 void WifiServices::restSetup()
 {
-  // restServer.on("/", restIndex);
-  // restServer.on("/display", restDisplay);
+  _restServer.on("/", [this]()
+                 { restIndex(); });
+  _restServer.on("/display", [this]()
+                 { restDisplay(); });
   _restServer.begin();
 
-  log_i("REST server running");
+  log_i("REST server setup complete");
 }

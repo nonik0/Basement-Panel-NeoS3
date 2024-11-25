@@ -15,6 +15,8 @@ public:
 
     char *getMessage() { return _message; }
 
+    virtual void setDisplay(bool display) { _display = display; }
+
     virtual void setMessage(const char *message) { strncpy(_message, message, MaxMessageSize); }
 
     bool suspendTask()
@@ -28,8 +30,6 @@ public:
     }
 
 protected:
-    virtual void setDisplay(bool display) = 0;
-
     virtual void task(void *parameters) = 0;
 
     static void taskWrapper(void *parameters)

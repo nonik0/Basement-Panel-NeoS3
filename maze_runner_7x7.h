@@ -1,6 +1,6 @@
 #pragma once
+
 #include <Adafruit_NeoPixel.h>
-#include <Arduino.h>
 
 #include "display_task_handler.h"
 #include "maze_runner.h"
@@ -26,21 +26,18 @@ private:
     MazeRunner *_mazeRunner;
 
 public:
-    MazeRunner7x7TaskHandler()
-        : _pixels(WIDTH * HEIGHT, DATA_PIN)
-    {
-    }
+    MazeRunner7x7TaskHandler() : _pixels(WIDTH * HEIGHT, DATA_PIN) {}
 
     bool createTask() override;
+    void setDisplay(bool display) override;
 
 private:
-    void setDisplay(bool display) override;
     void task(void *parameters) override;
 };
 
 bool MazeRunner7x7TaskHandler::createTask()
 {
-    log_d("Starting maze runner 7x7 setup");
+    log_d("Starting MazeRunner7x7 setup");
 
     if (_taskHandle != NULL)
     {
@@ -67,21 +64,21 @@ bool MazeRunner7x7TaskHandler::createTask()
 
     _mazeRunner->init();
 
+    log_d("Starting MazeRunner7x7Task");
     xTaskCreatePinnedToCore(taskWrapper, "MazeRunner7x7Task", 4096 * 4, this, 2, &_taskHandle, 0); // other Arduino tasks are on Core 1
-    log_d("Matrix setup complete");
 
+    log_d("MazeRunner7x7 setup complete");
     return true;
 }
 
 void MazeRunner7x7TaskHandler::setDisplay(bool display)
 {
+    log_d("Setting display to %s", display ? "on" : "off");
     digitalWrite(EN_PIN, display); // turns off LDO for 7x7 matrix
 }
 
 void MazeRunner7x7TaskHandler::task(void *parameters)
 {
-    log_d("Starting MazeRunner7x7Task");
-
     while (1)
     {
         if (_mazeRunner->update())

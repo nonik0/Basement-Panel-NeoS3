@@ -6,8 +6,8 @@
 #include <seesaw_neopixel.h>
 #include <tuple>
 
+#include "display_task_handler.h"
 #include "music.h"
-#include "task_handler.h"
 
 #define ACK1_ADDR 0x10
 #define ACK1_STATUS_CMD 0x01
@@ -174,6 +174,9 @@ bool InputTaskHandler::createTask()
     log_w("Task already started");
     return false;
   }
+
+  // let I2C devices settle
+  while (millis() < 5000);
 
   alphaNumSetup();
   neoKeySetup();

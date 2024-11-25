@@ -1,15 +1,11 @@
 #pragma once
 
 #include <Arduino.h>
-#include <algorithm>
-#include <functional>
 #include <queue>
 #include <stack>
 #include <tuple>
 #include <unordered_map>
 #include <unordered_set>
-
-#define ERROR_DELAY 10 * 1000
 
 using namespace std;
 
@@ -60,6 +56,7 @@ private:
   const uint8_t SentrySpeed = 5;
   const int GoalDelay = 10;
   const int CatchDelay = 30;
+  const int ErrorDelay = 100;
 
   int _width;
   int _height;
@@ -167,6 +164,7 @@ void MazeRunner::init()
 
 bool MazeRunner::update()
 {
+  // pause before reset to show goal, catch, or error
   if (_resetDelay > 0)
   {
     _resetDelay--;
@@ -181,30 +179,40 @@ bool MazeRunner::update()
 
   bool update = false;
 
-  update |= moveRunner();
-  if (_runnerLoc == _exitLoc)
+  try
   {
-    log_d("Runner reached exit");
-    drawMaze(); // redraw runner on goal
-    _resetDelay = GoalDelay;
-    return true;
-  }
+    update |= moveRunner();
+    if (_runnerLoc == _exitLoc)
+    {
+      log_d("Runner reached exit");
+      drawMaze(); // redraw runner on goal
+      _resetDelay = GoalDelay;
+      return true;
+    }
 
-  update |= moveSentry();
-  if (_sentryLoc == _runnerLoc)
+    update |= moveSentry();
+    if (_sentryLoc == _runnerLoc)
+    {
+      log_d("Runner caught by sentry");
+      // don't redraw sentry on runner
+      _resetDelay = CatchDelay;
+      return true;
+    }
+
+    if (update)
+    {
+      drawMaze();
+    }
+
+    return update;
+  }
+  catch (const std::exception &e)
   {
-    log_d("Runner caught by sentry");
-    // don't redraw sentry on runner
-    _resetDelay = CatchDelay;
-    return true;
+    log_e("Error in maze runner update: %s", e.what());
+    _resetDelay = ErrorDelay;
+    // TODO: display error visually somehow
+    return false;
   }
-
-  if (update)
-  {
-    drawMaze();
-  }
-
-  return update;
 }
 
 bool MazeRunner::moveRunner()
@@ -215,42 +223,34 @@ bool MazeRunner::moveRunner()
     return false;
   }
 
-  try
+  // sense and flee if sentry is near
+  deque<Location> sensedPathToSentry = findPathDfs(_runnerLoc, _sentryLoc, RunnerSense);
+  if (sensedPathToSentry.size() > 0)
   {
-    // sense and flee if sentry is near
-    deque<Location> sensedPathToSentry = findPathDfs(_runnerLoc, _sentryLoc, RunnerSense);
-    if (sensedPathToSentry.size() > 0)
+    _runnerSentryKnownLoc = _sentryLoc;
+    _runnerPath = findLongestPathBfs(_runnerLoc, _sentryLoc, RunnerSense + RunnerFear);
+    while (_runnerPath.size() > RunnerSense)
     {
-      _runnerSentryKnownLoc = _sentryLoc;
-      _runnerPath = findLongestPathBfs(_runnerLoc, _sentryLoc, RunnerSense + RunnerFear);
-      while (_runnerPath.size() > RunnerSense)
-      {
-        _runnerPath.pop_back();
-      }
-    }
-    // plan if able
-    else if (_runnerPath.size() == 0)
-    {
-      _runnerPath = findPathDfs(_runnerLoc, _runnerSentryKnownLoc, _exitLoc);
-      _runnerSentryKnownLoc = {-1, -1};
-      _runnerPath = findPathDfs(_runnerLoc, _runnerSentryKnownLoc, _exitLoc);
-    }
-
-    // move
-    if (_runnerPath.size() > 0)
-    {
-      Location prevRunnerLoc = _runnerLoc;
-      _runnerLoc = _runnerPath.front();
-      _runnerPath.pop_front();
-      _runnerCooldown = RunnerSpeed;
-      log_v("Moved runner from (%d,%d) to (%d,%d)", prevRunnerLoc.x, prevRunnerLoc.y, _runnerLoc.x, _runnerLoc.y);
-      return true;
+      _runnerPath.pop_back();
     }
   }
-  catch (exception &e)
+  // plan if able
+  else if (_runnerPath.size() == 0)
   {
-    log_e("MazeRunnerMove Exception: %s", e.what());
-    delay(ERROR_DELAY);
+    _runnerPath = findPathDfs(_runnerLoc, _runnerSentryKnownLoc, _exitLoc);
+    _runnerSentryKnownLoc = {-1, -1};
+    _runnerPath = findPathDfs(_runnerLoc, _runnerSentryKnownLoc, _exitLoc);
+  }
+
+  // move
+  if (_runnerPath.size() > 0)
+  {
+    Location prevRunnerLoc = _runnerLoc;
+    _runnerLoc = _runnerPath.front();
+    _runnerPath.pop_front();
+    _runnerCooldown = RunnerSpeed;
+    log_v("Moved runner from (%d,%d) to (%d,%d)", prevRunnerLoc.x, prevRunnerLoc.y, _runnerLoc.x, _runnerLoc.y);
+    return true;
   }
 
   return false;
