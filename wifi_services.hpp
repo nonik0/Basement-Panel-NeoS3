@@ -6,17 +6,60 @@
 #include <WebServer.h>
 #include <WiFi.h>
 
-#include "input.h" // TODO: decouple with callback to display
 #include "secrets.h"
 
-const char *HOSTNAME = "Basement-Panel-NeoS3";
-const char *hostname = "basement-panel-neos3";
+class WifiServices
+{
+private:
+  WebServer _restServer;
 
-WebServer restServer(80);
-extern bool display;
-extern InputTaskHandler inputTask;
+  int _disconnectCount = 0;
+  long _statusCheckDelayMs = 0;
 
-void wifiSetup()
+public:
+  void setup(const char *hostname);
+  void start()
+  {
+    // xTaskCreatePinnedToCore(this->task, "WifiServices", 8192, NULL, 1, NULL, 1);
+  }
+
+private:
+  void task();
+  void checkWifiStatus();
+
+  void wifiSetup();
+  void otaSetup();
+  void mDnsSetup();
+
+  void restIndex();
+  void restDisplay();
+  void restSetup();
+};
+
+void WifiServices::setup(const char *hostname)
+{
+  log_i("Starting setup...");
+
+  wifiSetup();
+  mDnsSetup();
+  otaSetup();
+  restSetup();
+
+  log_i("Setup complete.");
+}
+
+void WifiServices::task()
+{
+  while (1)
+  {
+    ArduinoOTA.handle();
+    _restServer.handleClient();
+    checkWifiStatus();
+    delay(10);
+  }
+}
+
+void WifiServices::wifiSetup()
 {
   log_i("Wifi setting up...");
   WiFi.mode(WIFI_STA);
@@ -31,11 +74,9 @@ void wifiSetup()
   log_i("Wifi ready, IP address: %s", WiFi.localIP().toString().c_str());
 }
 
-volatile long wifiStatusDelayMs = 0;
-int wifiDisconnects = 0;
-void checkWifiStatus()
+void WifiServices::checkWifiStatus()
 {
-  if (wifiStatusDelayMs < 0)
+  if (_statusCheckDelayMs < 0)
   {
     try
     {
@@ -44,21 +85,21 @@ void checkWifiStatus()
         Serial.println("Reconnecting to WiFi...");
         WiFi.disconnect();
         WiFi.reconnect();
-        wifiDisconnects++;
+        _disconnectCount++;
         Serial.println("Reconnected to WiFi");
       }
     }
     catch (const std::exception &e)
     {
       Serial.println("Wifi error:" + String(e.what()));
-      wifiStatusDelayMs = 10 * 60 * 1000; // 10 minutes
+      _statusCheckDelayMs = 10 * 60 * 1000; // 10 minutes
     }
 
-    wifiStatusDelayMs = 60 * 1000; // 1 minute
+    _statusCheckDelayMs = 60 * 1000; // 1 minute
   }
 }
 
-void otaSetup()
+void WifiServices::otaSetup()
 {
   log_i("OTA setting up...");
 
@@ -97,7 +138,7 @@ void otaSetup()
   log_i("OTA setup complete.");
 }
 
-void mDnsSetup()
+void WifiServices::mDnsSetup()
 {
   if (!MDNS.begin(hostname))
   {
@@ -108,18 +149,18 @@ void mDnsSetup()
   log_i("mDNS responder started");
 }
 
-void restIndex()
+void WifiServices::restIndex()
 {
   log_i("Serving index.html");
-  restServer.send(200, "text/plain", HOSTNAME);
+  _restServer.send(200, "text/plain", HOSTNAME);
   log_i("Served index.html");
 }
 
-void restDisplay()
+void WifiServices::restDisplay()
 {
-  if (restServer.hasArg("plain"))
+  if (_restServer.hasArg("plain"))
   {
-    String body = restServer.arg("plain");
+    String body = _restServer.arg("plain");
     body.toLowerCase();
 
     if (body == "off")
@@ -134,19 +175,19 @@ void restDisplay()
     }
     else
     {
-      restServer.send(400, "text/plain", body);
+      _restServer.send(400, "text/plain", body);
       return;
     }
   }
 
-  restServer.send(200, "text/plain", display ? "on" : "off");
+  _restServer.send(200, "text/plain", display ? "on" : "off");
 }
 
-void restSetup()
+void WifiServices::restSetup()
 {
-  restServer.on("/", restIndex);
-  restServer.on("/display", restDisplay);
-  restServer.begin();
+  // restServer.on("/", restIndex);
+  // restServer.on("/display", restDisplay);
+  _restServer.begin();
 
   log_i("REST server running");
 }

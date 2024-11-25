@@ -62,7 +62,7 @@ const std::tuple<uint8_t, uint16_t> *AlphaNumPaths[] = {AlphaNumLoopPath, AlphaN
 int AlphaNumPathLengths[] = {AlphaNumLoopPathLength, AlphaNumFigure8PathLength, AlphaNumStarPathLength};
 int AlphaNumPathCount = sizeof(AlphaNumPaths) / sizeof(AlphaNumPaths[0]);
 
-class InputTaskHandler : public TaskHandler
+class InputTaskHandler : public DisplayTaskHandler
 {
 private:
   enum Mode

@@ -1,18 +1,19 @@
 #pragma once
 #include <Arduino.h>
 
-class TaskHandler
+class DisplayTaskHandler
 {
 protected:
     static const int MaxMessageSize = 100;
 
+    bool _display = true;
     TaskHandle_t _taskHandle = NULL;
     char _message[MaxMessageSize];
 
 public:
     virtual bool createTask() = 0;
 
-    char* getMessage() { return _message; }
+    char *getMessage() { return _message; }
 
     virtual void setMessage(const char *message) { strncpy(_message, message, MaxMessageSize); }
 
@@ -27,11 +28,13 @@ public:
     }
 
 protected:
+    virtual void setDisplay(bool display) = 0;
+
     virtual void task(void *parameters) = 0;
 
     static void taskWrapper(void *parameters)
     {
-        TaskHandler *handler = static_cast<TaskHandler *>(parameters);
+        DisplayTaskHandler *handler = static_cast<DisplayTaskHandler *>(parameters);
         handler->task(parameters);
     }
 };

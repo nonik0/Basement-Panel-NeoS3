@@ -2,12 +2,10 @@
 #include <Adafruit_NeoPixel.h>
 #include <Arduino.h>
 
-#include "mazeRunner.h"
-#include "task_handler.h"
+#include "display_task_handler.h"
+#include "maze_runner.h"
 
-extern bool display;
-
-class MazeRunnerTaskHandler : public TaskHandler
+class MazeRunner7x7TaskHandler : public DisplayTaskHandler
 {
 private:
     const int MAZE_DELAY_MS = 60;
@@ -28,7 +26,7 @@ private:
     MazeRunner *_mazeRunner;
 
 public:
-    MazeRunnerTaskHandler()
+    MazeRunner7x7TaskHandler()
         : _pixels(WIDTH * HEIGHT, DATA_PIN)
     {
     }
@@ -36,10 +34,11 @@ public:
     bool createTask() override;
 
 private:
+    void setDisplay(bool display) override;
     void task(void *parameters) override;
 };
 
-bool MazeRunnerTaskHandler::createTask()
+bool MazeRunner7x7TaskHandler::createTask()
 {
     log_d("Starting maze runner 7x7 setup");
 
@@ -74,13 +73,17 @@ bool MazeRunnerTaskHandler::createTask()
     return true;
 }
 
-void MazeRunnerTaskHandler::task(void *parameters)
+void MazeRunner7x7TaskHandler::setDisplay(bool display)
+{
+    digitalWrite(EN_PIN, display); // turns off LDO for 7x7 matrix
+}
+
+void MazeRunner7x7TaskHandler::task(void *parameters)
 {
     log_d("Starting MazeRunner7x7Task");
 
     while (1)
     {
-        // digitalWrite(EN_PIN, display); // turns off LDO
         if (_mazeRunner->update())
             _pixels.show();
         delay(MAZE_DELAY_MS);
