@@ -64,10 +64,6 @@ const std::tuple<uint8_t, uint16_t> *AlphaNumPaths[] = {AlphaNumLoopPath, AlphaN
 int AlphaNumPathLengths[] = {AlphaNumLoopPathLength, AlphaNumFigure8PathLength, AlphaNumStarPathLength};
 int AlphaNumPathCount = sizeof(AlphaNumPaths) / sizeof(AlphaNumPaths[0]);
 
-Adafruit_NeoKey_1x4 neokeyArray[2] = {Adafruit_NeoKey_1x4(SS_NEOKEY1_ADDR), Adafruit_NeoKey_1x4(SS_NEOKEY2_ADDR)};
-Adafruit_MultiNeoKey1x4 neoKey((Adafruit_NeoKey_1x4 *)neokeyArray, 2, 1);
-
-
 class InputTaskHandler : public TaskHandler
 {
 private:
@@ -97,8 +93,9 @@ private:
   int alphaNumPathIndex;
 
   bool neoKeyInit = false;
+  Adafruit_NeoKey_1x4 neokeyArray[2] = {Adafruit_NeoKey_1x4(SS_NEOKEY1_ADDR), Adafruit_NeoKey_1x4(SS_NEOKEY2_ADDR)};
+  Adafruit_MultiNeoKey1x4 neoKey = Adafruit_MultiNeoKey1x4((Adafruit_NeoKey_1x4 *)neokeyArray, 2, 1);
 
-  static void neoKeyCallback(keyEvent evt, void *context);
   unsigned long neoKeyLastPressMillis = 0;
   unsigned long neoKeyLastReleaseMillis = 0;
   // light/blinky mode state
@@ -153,6 +150,7 @@ private:
   void neoKeySetup();
   void neoKeyUpdate();
   NeoKey1x4Callback neoKeyCallback(keyEvent evt);
+  static NeoKey1x4Callback neoKeyCallbackStatic(keyEvent evt);
 
   void neoSliderSetup();
   void neoSliderUpdate();
@@ -658,7 +656,7 @@ void InputTaskHandler::neoKeySetup()
 
   for (int i = 0; i < SS_NEOKEY_COUNT; i++)
   {
-    //neoKey.registerCallback(i, neoKeyCallback, this);
+    neoKey.registerCallback(i, InputTaskHandler::neoKeyCallbackStatic);
   }
 
   log_i("NeoKey initialized");
@@ -723,8 +721,14 @@ void InputTaskHandler::neoKeyUpdate()
   }
 }
 
-/*
-void InputTaskHandler::neoKeyCallback(keyEvent evt, void *context)
+// I hate this
+extern InputTaskHandler inputTask;
+NeoKey1x4Callback InputTaskHandler::neoKeyCallbackStatic(keyEvent evt)
+{
+  inputTask.neoKeyCallback(evt);
+}
+
+NeoKey1x4Callback InputTaskHandler::neoKeyCallback(keyEvent evt)
 {
   log_d("NeoKey event: %d %s", evt.bit.NUM, evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING ? "rising" : "falling");
 
@@ -781,7 +785,6 @@ void InputTaskHandler::neoKeyCallback(keyEvent evt, void *context)
   neoKey.show();
   ack1Tone(tone);
 }
-*/
 
 void InputTaskHandler::neoSliderSetup()
 {

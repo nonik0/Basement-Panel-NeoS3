@@ -110,6 +110,7 @@ private:
   stack<Location> findPathDfs(Location startLoc, Location endLoc, int maxDistToEnd = -1) { return findPathDfs(startLoc, endLoc, {-1, -1}, maxDistToEnd); }
   stack<Location> findPathDfs(Location startLoc, Location endLoc, Location hazardLoc = {-1, -1}, int maxDistToEnd = -1);
   stack<Location> findPathBfs(Location startLoc, Location endLoc);
+  stack<Location> findLongestPathBfs(Location startLoc, int maxSearchDistance);
 
   void shuffleDirections(Direction *list, int size);
   bool isAdjacent(Location a, Location b) { return abs(a.x - b.x) + abs(a.y - b.y) == 1; }
@@ -205,13 +206,14 @@ bool MazeRunner::moveRunner()
     {
       if (_runnerSentryKnownLoc == Location{-1, -1})
       {
+        log_v("Runner sensed sentry at (%d,%d), reevaluating path to goal", _sentryLoc.x, _sentryLoc.y);
         _runnerPath = findPathDfs(_runnerLoc, _exitLoc, _sentryLoc);
-        log_v("Runner sensed sentry at (%d,%d)", _sentryLoc.x, _sentryLoc.y);
       }
 
-      if (_runnerPath.size() > 0)
+      if (_runnerPath.size() == 0)
       {
-        _runnerSentryKnownLoc = _sentryLoc;
+        log_v("No path to goal, looking for path to flee");
+        // find path to furthest place from sentry in sense range
       }
 
       _runnerSentryKnownLoc = _sentryLoc;
@@ -224,7 +226,6 @@ bool MazeRunner::moveRunner()
       _runnerLoc = _runnerPath.top();
       _runnerPath.pop();
       _runnerCooldown = RunnerSpeed;
-      // update = true;
       log_v("Moved runner from (%d,%d) to (%d,%d)", prevRunnerLoc.x, prevRunnerLoc.y, _runnerLoc.x, _runnerLoc.y);
 
       if (_runnerLoc == _exitLoc)
@@ -638,10 +639,7 @@ stack<Location> MazeRunner::findPathDfs(Location startLoc, Location endLoc, Loca
         curPath.pop();
       }
 
-      // std::reverse(path.begin(), path.end());
-
       // remove start location from path
-      // path.erase(path.begin());
       path.pop();
 
       return path;
@@ -697,12 +695,55 @@ stack<Location> MazeRunner::findPathBfs(Location startLoc, Location endLoc)
         path.push(curLoc);
         curLoc = visitedFrom[curLoc];
       }
-      path.push(startLoc);
 
-      // std::reverse(path.begin(), path.end());
-      //  reverse(path.begin(), path.end());
+      return path;
+    }
 
-      path.pop();
+    locsVisited.insert(curLoc);
+
+    // look in different directions randomly in case of loops for variety of potential paths
+    Direction randSteps[4] = {Left, Right, Up, Down};
+    shuffleDirections(randSteps, 4);
+
+    for (Direction step : randSteps)
+    {
+      Location nextLoc = {curLoc.x + step.x, curLoc.y + step.y};
+      if (isInMazeBounds(nextLoc) && !isWall(nextLoc) && !locsVisited.count(nextLoc))
+      {
+        locsToVisit.push(nextLoc);
+        visitedFrom[nextLoc] = curLoc;
+      }
+    }
+  }
+
+  return stack<Location>();
+}
+
+stack<Location> MazeRunner::findLongestPathBfs(Location startLoc, int maxSearchDistance)
+{
+  queue<Location> locsToVisit = queue<Location>();
+  unordered_set<Location> locsVisited = unordered_set<Location>();
+  unordered_map<Location, Location> visitedFrom = unordered_map<Location, Location>();
+
+  locsToVisit.push(startLoc);
+  visitedFrom[startLoc] = startLoc; // special case start location, visited from itself
+
+  while (!locsToVisit.empty())
+  {
+    Location curLoc = locsToVisit.front();
+    locsToVisit.pop();
+
+    // found end, return path in vector form
+    if (curLoc == endLoc)
+    {
+      log_d("Found path from (%d,%d) to (%d,%d)", startLoc.x, startLoc.y, curLoc.x, curLoc.y);
+
+      stack<Location> path = stack<Location>();
+      while (curLoc != startLoc)
+      {
+        path.push(curLoc);
+        curLoc = visitedFrom[curLoc];
+      }
 
       return path;
     }
