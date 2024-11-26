@@ -71,18 +71,22 @@ bool MazeRunner7x7TaskHandler::createTask()
     return true;
 }
 
-void MazeRunner7x7TaskHandler::setDisplay(bool display)
+void MazeRunner7x7TaskHandler::setDisplay(bool displayState)
 {
-    log_d("Setting display to %s", display ? "on" : "off");
-    digitalWrite(EN_PIN, display); // turns off LDO for 7x7 matrix
+    DisplayTaskHandler::setDisplay(displayState);
+
+    log_d("Setting display to %s", displayState ? "on" : "off");
+    digitalWrite(EN_PIN, displayState); // turns off LDO for 7x7 matrix
 }
 
 void MazeRunner7x7TaskHandler::task(void *parameters)
 {
     while (1)
     {
-        if (_mazeRunner->update())
+        if (_display && _mazeRunner->update())
+        {
             _pixels.show();
+        }
         delay(MAZE_DELAY_MS);
     }
 }

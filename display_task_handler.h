@@ -15,7 +15,7 @@ public:
 
     char *getMessage() { return _message; }
 
-    virtual void setDisplay(bool display) { _display = display; }
+    virtual void setDisplay(bool displayState) { _display = displayState; }
 
     virtual void setMessage(const char *message) { strncpy(_message, message, MaxMessageSize); }
 
