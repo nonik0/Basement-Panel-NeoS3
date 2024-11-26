@@ -144,22 +144,22 @@ void MazeRunner::init()
   placeSentry();
   placeExit();
 
-  log_v("*--------*");
-  for (int y = 0; y < _height; y++)
-  {
-    String row = "|";
-    for (int x = 0; x < _width; x++)
-    {
-      char c = isWall(x, y) ? '#' : ' ';
-      c = (_runnerLoc.x == x && _runnerLoc.y == y) ? 'S' : c;
-      c = (_sentryLoc.x == x && _sentryLoc.y == y) ? 'X' : c;
-      c = (_exitLoc.x == x && _exitLoc.y == y) ? 'E' : c;
-      row += c;
-    }
-    row += "|";
-    log_v("%s", row);
-  }
-  log_v("*--------*");
+  // log_v("*--------*");
+  // for (int y = 0; y < _height; y++)
+  // {
+  //   String row = "|";
+  //   for (int x = 0; x < _width; x++)
+  //   {
+  //     char c = isWall(x, y) ? '#' : ' ';
+  //     c = (_runnerLoc.x == x && _runnerLoc.y == y) ? 'S' : c;
+  //     c = (_sentryLoc.x == x && _sentryLoc.y == y) ? 'X' : c;
+  //     c = (_exitLoc.x == x && _exitLoc.y == y) ? 'E' : c;
+  //     row += c;
+  //   }
+  //   row += "|";
+  //   log_v("%s", row);
+  // }
+  // log_v("*--------*");
 }
 
 bool MazeRunner::update()
