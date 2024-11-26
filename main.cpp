@@ -16,13 +16,13 @@ void setup()
   wifiServices.setup(DEVICE_NAME);
 
   inputTask.createTask();
-  mazeRunner.createTask();
+  //mazeRunner.createTask();
   wifiServices.createTask();
 
   wifiServices.registerSetDisplayCallback([](bool display)
                                           { inputTask.setDisplay(display); });
-  wifiServices.registerSetDisplayCallback([](bool display)
-                                          { mazeRunner.setDisplay(display); });
+  //wifiServices.registerSetDisplayCallback([](bool display)
+  //                                        { mazeRunner.setDisplay(display); });
 
   log_i("Setup complete");
 }

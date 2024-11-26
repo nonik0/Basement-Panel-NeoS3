@@ -40,6 +40,8 @@ namespace std
 using Location = Coordinate;
 using Direction = Coordinate;
 
+const Location NullLocation = Location{-1, -1};
+
 const Direction Left = {-1, 0};
 const Direction Right = {1, 0};
 const Direction Up = {0, -1};
@@ -66,21 +68,21 @@ private:
   uint32_t _offColor;
   uint32_t _wallColor;
 
-  Location _runnerLoc = {-1, -1};
-  Location _runnerSentryKnownLoc = {-1, -1};
+  Location _runnerLoc = NullLocation;
+  Location _runnerSentryKnownLoc = NullLocation;
   deque<Location> _runnerPath;
   uint32_t _runnerColor;
   uint8_t _runnerCooldown = 0;
   int _resetDelay = -1;
 
-  Location _sentryLoc = {-1, -1};
-  Location _sentryExitKnownLoc = {-1, -1};
+  Location _sentryLoc = NullLocation;
+  Location _sentryExitKnownLoc = NullLocation;
   deque<Location> _sentryPath;
   uint32_t _sentryColor;
   uint8_t _sentryCooldown = 0;
 
   uint32_t _exitColor;
-  Location _exitLoc = {-1, -1};
+  Location _exitLoc = NullLocation;
 
   // function callback to draw pixels
   std::function<void(int, int, uint32_t)> _drawPixel;
@@ -103,9 +105,9 @@ private:
   void placeSentry();
   void placeExit();
 
-  deque<Location> findPathDfs(Location startLoc, Location endLoc, int maxSearchDistance = -1) { return findPathDfs(startLoc, {-1, -1}, endLoc, maxSearchDistance); }
+  deque<Location> findPathDfs(Location startLoc, Location endLoc, int maxSearchDistance = -1) { return findPathDfs(startLoc, NullLocation, endLoc, maxSearchDistance); }
   deque<Location> findPathDfs(Location startLoc, Location sentryLoc, Location encLoc, int maxSearchDistance = -1);
-  deque<Location> findLongestPathBfs(Location startLoc, Location sentryLoc, int maxSearchDistance);
+  deque<Location> findLongestPathBfs(Location startLoc, Location sentryLoc = NullLocation, int maxSearchDistance = -1);
 
   bool isAdjacent(Location a, Location b) { return abs(a.x - b.x) + abs(a.y - b.y) == 1; }
   bool isWall(int x, int y);
@@ -144,22 +146,22 @@ void MazeRunner::init()
   placeSentry();
   placeExit();
 
-  // log_v("*--------*");
-  // for (int y = 0; y < _height; y++)
-  // {
-  //   String row = "|";
-  //   for (int x = 0; x < _width; x++)
-  //   {
-  //     char c = isWall(x, y) ? '#' : ' ';
-  //     c = (_runnerLoc.x == x && _runnerLoc.y == y) ? 'S' : c;
-  //     c = (_sentryLoc.x == x && _sentryLoc.y == y) ? 'X' : c;
-  //     c = (_exitLoc.x == x && _exitLoc.y == y) ? 'E' : c;
-  //     row += c;
-  //   }
-  //   row += "|";
-  //   log_v("%s", row);
-  // }
-  // log_v("*--------*");
+  log_v("*--------*");
+  for (int y = 0; y < _height; y++)
+  {
+    String row = "|";
+    for (int x = 0; x < _width; x++)
+    {
+      char c = isWall(x, y) ? '#' : ' ';
+      c = (_runnerLoc.x == x && _runnerLoc.y == y) ? 'S' : c;
+      c = (_sentryLoc.x == x && _sentryLoc.y == y) ? 'X' : c;
+      c = (_exitLoc.x == x && _exitLoc.y == y) ? 'E' : c;
+      row += c;
+    }
+    row += "|";
+    log_v("%s", row);
+  }
+  log_v("*--------*");
 }
 
 bool MazeRunner::update()
@@ -168,7 +170,7 @@ bool MazeRunner::update()
   if (_resetDelay > 0)
   {
     _resetDelay--;
-    if (_resetDelay == 0)
+    if (_resetDelay <= 0)
     {
       init();
       drawMaze();
@@ -238,7 +240,7 @@ bool MazeRunner::moveRunner()
   else if (_runnerPath.size() == 0)
   {
     _runnerPath = findPathDfs(_runnerLoc, _runnerSentryKnownLoc, _exitLoc);
-    _runnerSentryKnownLoc = {-1, -1};
+    _runnerSentryKnownLoc = NullLocation;
     _runnerPath = findPathDfs(_runnerLoc, _runnerSentryKnownLoc, _exitLoc);
   }
 
@@ -285,7 +287,7 @@ bool MazeRunner::moveSentry()
   }
 
   // // sense exit if not known
-  // if (_sentryExitKnownLoc == Location{-1, -1})
+  // if (_sentryExitKnownLoc == NoLocation})
   // {
   //   deque<Location> sensedPathToExit = findPathDfs(_sentryLoc, _exitLoc, SentrySense);
   //   if (sensedPathToExit.size() > 0)
@@ -296,7 +298,7 @@ bool MazeRunner::moveSentry()
   // }
 
   // // return to exit if known and not chasing
-  // if (_sentryPath.size() == 0 && _sentryExitKnownLoc != Location{-1, -1})
+  // if (_sentryPath.size() == 0 && _sentryExitKnownLoc != NoLocation})
   // {
   //   _sentryPath = findPathDfs(_sentryLoc, _sentryExitKnownLoc);
   // }
@@ -343,9 +345,9 @@ void MazeRunner::generateMaze()
     }
   }
 
-  // define starting point randomly if exit is not previously defined (ensures space for runner start loc)
-  Location start = {-1, -1};
-  if (_exitLoc.x == -1 || _exitLoc.y == -1)
+  // define starting point randomly if runner loc is not defined
+  Location start = NullLocation;
+  if (_exitLoc == NullLocation)
   {
     int edge = random(4);
     int x = random(0, _width);
@@ -354,7 +356,7 @@ void MazeRunner::generateMaze()
   }
   else
   {
-    start = _exitLoc;
+    start = _runnerLoc;
   }
   _mazeWalls[start.y][start.x] = false;
 
@@ -415,7 +417,7 @@ void MazeRunner::generateMaze()
 void MazeRunner::placeRunner()
 {
   _runnerPath = {};
-  _runnerSentryKnownLoc = {-1, -1};
+  _runnerSentryKnownLoc = NullLocation;
   _runnerCooldown = 0;
 
   if (_runnerLoc.x > 0 && _runnerLoc.y > 0)
@@ -457,7 +459,7 @@ void MazeRunner::placeSentry()
     return;
   }
 
-  _sentryLoc = {-1, -1};
+  _sentryLoc = NullLocation;
   _sentryPath = {};
   _sentryCooldown = SentrySpeed;
 
@@ -479,23 +481,19 @@ void MazeRunner::placeSentry()
 
 void MazeRunner::placeExit()
 {
-  _exitLoc = {-1, -1};
+  _exitLoc = NullLocation;
 
-  int attempts = 0;
-  while (_exitLoc.x == -1)
+  deque<Location> path = findLongestPathBfs(_runnerLoc);
+  if (path.size() == 0)
   {
-    int x = random(_width);
-    int y = random(_height);
-    int runnerDistance = abs(x - _runnerLoc.x) + abs(y - _runnerLoc.y);
-    int sentryDistance = abs(x - _sentryLoc.x) + abs(y - _sentryLoc.y);
-    int minRunnerDistance = max(0, (_width + _height) / 2 - (attempts / 10));
-    if (!isWall(x, y) && runnerDistance > minRunnerDistance && sentryDistance > 0)
-    {
-      _exitLoc = {x, y};
-    }
-    attempts++;
+    log_e("Failed to find path to exit");
+    _resetDelay = ErrorDelay;
+    return;
   }
-  log_d("Placing exit at (%d,%d) after %d attempts", _exitLoc.x, _exitLoc.y, attempts);
+
+  _exitLoc = path.back();
+
+  log_d("Placing exit at (%d,%d) with distance %d from runner", _exitLoc.x, _exitLoc.y, path.size());
 }
 
 deque<Location> MazeRunner::findPathDfs(Location startLoc, Location sentryLoc, Location endLoc, int maxSearchDistance)
@@ -553,7 +551,7 @@ deque<Location> MazeRunner::findPathDfs(Location startLoc, Location sentryLoc, L
     for (Direction step : randSteps)
     {
       Location nextLoc = {curLoc.x + step.x, curLoc.y + step.y};
-      if (isInMazeBounds(nextLoc) && !isWall(nextLoc) && (sentryLoc == Location{-1, -1} || (nextLoc != sentryLoc && !isAdjacent(nextLoc, sentryLoc))) && !locsVisited.count(nextLoc))
+      if (isInMazeBounds(nextLoc) && !isWall(nextLoc) && (sentryLoc == NullLocation || (nextLoc != sentryLoc && !isAdjacent(nextLoc, sentryLoc))) && !locsVisited.count(nextLoc))
       {
         locsToVisit.push({nextLoc, distFromStart + 1});
       }
@@ -595,7 +593,7 @@ deque<Location> MazeRunner::findLongestPathBfs(Location startLoc, Location sentr
     for (Direction step : randSteps)
     {
       Location nextLoc = {curLoc.x + step.x, curLoc.y + step.y};
-      if (isInMazeBounds(nextLoc) && !isWall(nextLoc) && (sentryLoc == Location{-1, -1} || (nextLoc != sentryLoc && !isAdjacent(nextLoc, sentryLoc))) && !locsVisited.count(nextLoc))
+      if (isInMazeBounds(nextLoc) && !isWall(nextLoc) && (sentryLoc == NullLocation || (nextLoc != sentryLoc && !isAdjacent(nextLoc, sentryLoc))) && !locsVisited.count(nextLoc))
       {
         pair<Location, int> nextLocAndDist = {nextLoc, distFromStart + 1};
         locsToVisit.push(nextLocAndDist);

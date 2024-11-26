@@ -79,16 +79,10 @@ void MazeRunner7x7TaskHandler::setDisplay(bool displayState)
     digitalWrite(EN_PIN, displayState); // turns off LDO for 7x7 matrix
 }
 
-unsigned long lastMillis = 0;
 void MazeRunner7x7TaskHandler::task(void *parameters)
 {
     while (1)
     {
-        if (millis() - lastMillis > 15000) {
-            log_d("MazeRunner7x7Task running");
-            lastMillis = millis();
-        }
-
         if (_display && _mazeRunner->update())
         {
             _pixels.show();

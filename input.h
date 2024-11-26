@@ -101,7 +101,6 @@ private:
   unsigned long _neoKeyLastPressMillis = 0;
   unsigned long _neoKeyLastReleaseMillis = 0;
   // light/blinky mode state
-  int _neoKeyPressedIndex = -1;
   bool _neoKeyPixelState[SS_NEOKEY_COUNT];
   int _neoKeyBlinkyDelay[SS_NEOKEY_COUNT]; // blinky state
 
@@ -192,7 +191,8 @@ bool InputTaskHandler::createTask()
   delay(1000);
   ack1Setup(); // slow to initialize
 
-  xTaskCreatePinnedToCore(taskWrapper, "InputTask", 4096, this, 2, &_taskHandle, 1);
+  log_d("Starting InputTask");
+  xTaskCreatePinnedToCore(taskWrapper, "InputTask", 4096 * 4, this, 1, &_taskHandle, 1);
 
   log_d("Input setup complete");
   return true;
@@ -216,19 +216,31 @@ void InputTaskHandler::setDisplay(bool displayState)
   }
 }
 
+unsigned long lastMillis = 0;
 void InputTaskHandler::task(void *parameters)
 {
-  log_d("Starting InputTask");
-
   while (1)
   {
-    if (_display)
+    try
     {
       neoKeyRead();
       neoSliderRead();
       rotaryRead();
 
-      update();
+      if (_display)
+      {
+        update();
+      }
+
+      if (millis() - lastMillis > 7500)
+      {
+        log_d("InputTask running");
+        lastMillis = millis();
+      }
+    }
+    catch (const std::exception &e)
+    {
+      log_e("Error in input task: %s", e.what());
     }
 
     delay(DELAY_MS);
@@ -318,7 +330,7 @@ void InputTaskHandler::updateLights()
 {
   if (_neoKeyJustPressedIndex >= 0)
   {
-    uint32_t color = wheel(map(_neoKeyPressedIndex, 0, SS_NEOKEY_COUNT, 0, 255));
+    uint32_t color = wheel(map(_neoKeyJustPressedIndex, 0, SS_NEOKEY_COUNT, 0, 255));
 
     // toggle neokey light
     _neoKeyPixelState[_neoKeyJustPressedIndex] = !_neoKeyPixelState[_neoKeyJustPressedIndex];
@@ -671,7 +683,7 @@ bool InputTaskHandler::ack1Response(uint8_t *data, size_t len)
   for (size_t i = 0; i < recv; i++)
   {
     data[i] = Wire.read();
-    log_d("Read response byte %d: %02x", i, data[i]);
+    log_v("Read response byte %d: %02x", i, data[i]);
   }
 
   return true;
@@ -693,11 +705,10 @@ void InputTaskHandler::ack1Tone(uint16_t freq)
   }
 
   uint8_t toneData[2];
-  // freq = ((params[0]) << 8) | (params[1]);
   toneData[0] = freq >> 8;
   toneData[1] = freq & 0xFF;
-  log_d("Tone freq: %d", freq);
-  log_d("Tone data: %02x %02x", toneData[0], toneData[1]);
+  log_v("Tone freq: %d", freq);
+  log_v("Tone data: %02x %02x", toneData[0], toneData[1]);
   ack1Command(ACK1_TONEON_CMD, toneData, 2);
 }
 
@@ -817,6 +828,14 @@ void InputTaskHandler::neoKeyRead()
   _neoKeyJustReleasedIndex = -1;
 
   _neoKey.read();
+  if (_neoKeyJustPressedIndex >= 0)
+  {
+    log_d("NeoKey just pressed: %d", _neoKeyJustPressedIndex);
+  }
+  if (_neoKeyJustReleasedIndex >= 0)
+  {
+    log_d("NeoKey just released: %d", _neoKeyJustReleasedIndex);
+  }
 }
 
 void InputTaskHandler::neoKeyClear()
@@ -830,6 +849,7 @@ void InputTaskHandler::neoKeyClear()
 
 NeoKey1x4Callback InputTaskHandler::neoKeyCallbackStatic(keyEvent evt)
 {
+  log_d("Forwarding event: %d %s", evt.bit.NUM, evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING ? "rising" : "falling");
   inputTask.neoKeyCallback(evt);
 }
 
@@ -837,19 +857,18 @@ NeoKey1x4Callback InputTaskHandler::neoKeyCallback(keyEvent evt)
 {
   log_d("NeoKey event: %d %s", evt.bit.NUM, evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING ? "rising" : "falling");
 
-  uint8_t key = evt.bit.NUM;
-
   if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING)
   {
-    _neoKeyJustPressedIndex = key;
-    _neoKeyPressedIndex = key;
+    _neoKeyJustPressedIndex = evt.bit.NUM;
     _neoKeyLastPressMillis = millis();
   }
   else if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_FALLING)
   {
-    _neoKeyJustReleasedIndex = key;
+    _neoKeyJustReleasedIndex = evt.bit.NUM;
     _neoKeyLastReleaseMillis = millis();
   }
+
+  log_d("NeoKey just pressed: %d, released: %d", _neoKeyJustPressedIndex, _neoKeyJustReleasedIndex);
 }
 
 void InputTaskHandler::neoSliderSetup()
