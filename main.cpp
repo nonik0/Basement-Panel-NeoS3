@@ -1,10 +1,10 @@
 #include <Arduino.h>
 
-// #include "input.h"
+#include "input.h"
 #include "maze_runner_7x7.h"
-#include "wifi_services.hpp"
+#include "wifi_services.h"
 
-// InputTaskHandler inputTask;
+InputTaskHandler inputTask;
 MazeRunner7x7TaskHandler mazeRunner;
 WifiServices wifiServices;
 
@@ -15,10 +15,12 @@ void setup()
 
   wifiServices.setup(DEVICE_NAME);
 
-  // inputTask.createTask();
+  inputTask.createTask();
   mazeRunner.createTask();
   wifiServices.createTask();
 
+  wifiServices.registerSetDisplayCallback([](bool display)
+                                          { inputTask.setDisplay(display); });
   wifiServices.registerSetDisplayCallback([](bool display)
                                           { mazeRunner.setDisplay(display); });
 

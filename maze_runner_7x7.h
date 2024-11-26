@@ -84,7 +84,7 @@ void MazeRunner7x7TaskHandler::task(void *parameters)
 {
     while (1)
     {
-        if (millis() - lastMillis > 5000) {
+        if (millis() - lastMillis > 15000) {
             log_d("MazeRunner7x7Task running");
             lastMillis = millis();
         }

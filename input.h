@@ -46,6 +46,7 @@
 #define BASE_DELAY 40
 
 // I hate this
+class InputTaskHandler;
 extern InputTaskHandler inputTask;
 
 const std::tuple<uint8_t, uint16_t> AlphaNumLoopPath[] = {
@@ -487,7 +488,7 @@ void InputTaskHandler::changeMode(int mode)
     for (int i = 0; i < SS_NEOSLIDER_LED_COUNT; i++)
     {
       _neoSliderPixelState[i] = true;
-      _neoSlider.setPixelColor(i, wheel(map(i, 0, SS_NEOSLIDER_LED_COUNT, 0, 255)));
+      _neoSliderPixels.setPixelColor(i, wheel(map(i, 0, SS_NEOSLIDER_LED_COUNT, 0, 255)));
     }
     _neoSliderPixels.show();
 
@@ -519,7 +520,7 @@ void InputTaskHandler::changeMode(int mode)
     {
       _neoSliderPixelState[i] = true;
       _neoSliderBlinkyDelay[i] = random(BASE_DELAY * 5, BASE_DELAY * 10);
-      _neoSlider.setPixelColor(i, wheel(_rotaryWheelPos + random(0, 32)));
+      _neoSliderPixels.setPixelColor(i, wheel(_rotaryWheelPos + random(0, 32)));
     }
     _neoSliderPixels.show();
 

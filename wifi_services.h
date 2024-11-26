@@ -22,6 +22,7 @@ private:
   const char *_hostnameLower;
   int _disconnectCount = 0;
   unsigned long _lastStatusCheckMs = 0;
+  bool _displayState = true;
   ArduinoOTAClass _ota;
   WebServer _restServer;
   vector<SetDisplayCallback> _setDisplayCallbacks;
@@ -213,33 +214,31 @@ void WifiServices::restDisplay()
     String body = _restServer.arg("plain");
     body.toLowerCase();
 
-    bool displayState;
     bool isValid = false;
     if (body == "off" || body == "false")
     {
-      displayState = false;
+      _displayState = false;
       isValid = true;
     }
     else if (body == "on" || body == "true")
     {
-      displayState = true;
+      _displayState = true;
       isValid = true;
     }
 
     if (!isValid)
     {
-      _restServer.send(400, "text/plain", body);
+      _restServer.send(400, "text/plain", "Invalid value sent: " + body);
       return;
     }
 
     for (auto setDisplayCallback : _setDisplayCallbacks)
     {
-      setDisplayCallback(displayState);
+      setDisplayCallback(_displayState);
     }
-    _restServer.send(200, "text/plain", displayState ? "on" : "off");
   }
 
-  _restServer.send(200, "text/plain", "TODO");
+  _restServer.send(200, "text/plain", _displayState ? "on" : "off");
 }
 
 void WifiServices::restSetup()
