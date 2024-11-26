@@ -22,7 +22,7 @@ void setup()
   wifiServices.registerSetDisplayCallback([](bool display)
                                           { inputTask.setDisplay(display); });
   //wifiServices.registerSetDisplayCallback([](bool display)
-  //                                        { mazeRunner.setDisplay(display); });
+    //                                      { mazeRunner.setDisplay(display); });
 
   log_i("Setup complete");
 }

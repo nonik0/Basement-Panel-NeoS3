@@ -241,6 +241,8 @@ void InputTaskHandler::task(void *parameters)
     catch (const std::exception &e)
     {
       log_e("Error in input task: %s", e.what());
+      delay(5000);
+      Serial.flush();
     }
 
     delay(DELAY_MS);
@@ -855,20 +857,18 @@ NeoKey1x4Callback InputTaskHandler::neoKeyCallbackStatic(keyEvent evt)
 
 NeoKey1x4Callback InputTaskHandler::neoKeyCallback(keyEvent evt)
 {
-  log_d("NeoKey event: %d %s", evt.bit.NUM, evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING ? "rising" : "falling");
-
   if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING)
   {
+    log_i("NeoKey just pressed: %d", evt.bit.NUM);
     _neoKeyJustPressedIndex = evt.bit.NUM;
     _neoKeyLastPressMillis = millis();
   }
   else if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_FALLING)
   {
+    log_i("NeoKey just released: %d", evt.bit.NUM);
     _neoKeyJustReleasedIndex = evt.bit.NUM;
     _neoKeyLastReleaseMillis = millis();
   }
-
-  log_d("NeoKey just pressed: %d, released: %d", _neoKeyJustPressedIndex, _neoKeyJustReleasedIndex);
 }
 
 void InputTaskHandler::neoSliderSetup()
