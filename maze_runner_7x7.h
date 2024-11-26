@@ -37,7 +37,7 @@ private:
 
 bool MazeRunner7x7TaskHandler::createTask()
 {
-    log_d("Starting MazeRunner7x7 setup");
+    log_i("Starting MazeRunner7x7 setup");
 
     if (_taskHandle != NULL)
     {
@@ -64,10 +64,10 @@ bool MazeRunner7x7TaskHandler::createTask()
 
     _mazeRunner->init();
 
-    log_d("Starting MazeRunner7x7Task");
+    log_i("Starting MazeRunner7x7Task");
     xTaskCreatePinnedToCore(taskWrapper, "MazeRunner7x7Task", 4096 * 4, this, 2, &_taskHandle, 0); // other Arduino tasks are on Core 1
 
-    log_d("MazeRunner7x7 setup complete");
+    log_i("MazeRunner7x7 setup complete");
     return true;
 }
 
@@ -75,7 +75,7 @@ void MazeRunner7x7TaskHandler::setDisplay(bool displayState)
 {
     DisplayTaskHandler::setDisplay(displayState);
 
-    log_d("Setting display to %s", displayState ? "on" : "off");
+    log_i("Setting display to %s", displayState ? "on" : "off");
     digitalWrite(EN_PIN, displayState); // turns off LDO for 7x7 matrix
 }
 

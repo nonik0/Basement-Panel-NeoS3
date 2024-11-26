@@ -87,7 +87,6 @@ private:
 
   bool _alphaNumInit = false;
   Adafruit_AlphaNum4 _alphaNum = Adafruit_AlphaNum4();
-  bool _alphaNumUpdated = false;
   char _alphaNumBuffer[ALPHANUM_CHAR_COUNT] = {' ', ' ', ' ', ' '};
   int _alphaNumBlinkyDelay;
   int _alphaNumBlinkyIndex;
@@ -172,7 +171,7 @@ private:
 
 bool InputTaskHandler::createTask()
 {
-  log_d("Starting input setup");
+  log_i("Starting input setup");
 
   if (_taskHandle != NULL)
   {
@@ -191,10 +190,10 @@ bool InputTaskHandler::createTask()
   delay(1000);
   ack1Setup(); // slow to initialize
 
-  log_d("Starting InputTask");
+  log_i("Starting InputTask");
   xTaskCreatePinnedToCore(taskWrapper, "InputTask", 4096 * 4, this, 1, &_taskHandle, 1);
 
-  log_d("Input setup complete");
+  log_i("Input setup complete");
   return true;
 }
 
@@ -234,7 +233,7 @@ void InputTaskHandler::task(void *parameters)
 
       if (millis() - lastMillis > 7500)
       {
-        log_d("InputTask running");
+        log_i("InputTask running");
         lastMillis = millis();
       }
     }
@@ -321,8 +320,12 @@ void InputTaskHandler::updateMusic()
     _neoKeyJustPressedIndex = -1;
   }
 
+  // turn off tone and light on release
   if (_neoKeyJustReleasedIndex >= 0)
   {
+    _neoKey.setPixelColor(_neoKeyJustReleasedIndex, 0x0);
+    _neoKey.show();
+
     ack1Tone(0);
     _neoKeyJustReleasedIndex = -1;
   }
@@ -458,7 +461,7 @@ uint32_t InputTaskHandler::wheel(uint8_t wheelPos)
   return seesaw_NeoPixel::Color(wheelPos * 3, 255 - wheelPos * 3, 0);
 }
 
-void InputTaskHandler::changeMode(int mode)
+void InputTaskHandler::changeMode(int desiredMode)
 {
   if (!_ack1Init || !_neoKeyInit || !_neoSliderInit || !_rotaryInit)
   {
@@ -466,17 +469,9 @@ void InputTaskHandler::changeMode(int mode)
     return;
   }
 
-  // toggle mode or use given
-  if (mode > 0)
-  {
-    mode = mode % 3;
-  }
-  else
-  {
-    mode = static_cast<Mode>((static_cast<int>(mode) + 1) % 3);
-  }
+  _mode = (Mode)(desiredMode > 0 ? desiredMode % 3 : (_mode + 1) % 3);
 
-  if (mode == Music)
+  if (_mode == Music)
   {
     log_i("Switching to Music mode");
     alphaNumClear();
@@ -484,7 +479,7 @@ void InputTaskHandler::changeMode(int mode)
     neoSliderClear();
     rotaryClear();
   }
-  else if (mode == Lights)
+  else if (_mode == Lights)
   {
     log_i("Switching to Lights mode");
 
@@ -510,7 +505,7 @@ void InputTaskHandler::changeMode(int mode)
     _rotaryNeoPixel.setPixelColor(0, wheel(_rotaryWheelPos));
     _rotaryNeoPixel.show();
   }
-  else if (mode == Blinky)
+  else if (_mode == Blinky)
   {
     log_i("Switching to Blinky mode");
 
@@ -589,19 +584,19 @@ bool InputTaskHandler::ack1Command(uint8_t cmd, const uint8_t *data, size_t len)
   switch (cmd)
   {
   case ACK1_LEDCLR_CMD:
-    log_d("Sending LEDCLR command");
+    log_i("Sending LEDCLR command");
     Wire.write(ACK1_LEDCLR_CMD);
     _ack1Display = false;
     break;
   case ACK1_LEDSCROLL_CMD:
-    log_d("Sending LEDSCROLL command");
+    log_i("Sending LEDSCROLL command");
     Wire.write(ACK1_LEDSCROLL_CMD);
     Wire.write(static_cast<uint8_t>(len));
     Wire.write(data, len);
     _ack1Display = true;
     break;
   case ACK1_TONEON_CMD:
-    log_d("Sending TONEON command");
+    log_i("Sending TONEON command");
     Wire.write(ACK1_TONEON_CMD);
     if (len != 2)
     {
@@ -612,16 +607,16 @@ bool InputTaskHandler::ack1Command(uint8_t cmd, const uint8_t *data, size_t len)
     Wire.write(data, 2);
     break;
   case ACK1_TONEOFF_CMD:
-    log_d("Sending TONEOFF command");
+    log_i("Sending TONEOFF command");
     Wire.write(ACK1_TONEOFF_CMD);
     break;
   case ACK1_STATUS_CMD:
-    log_d("Sending status command");
+    log_i("Sending status command");
     Wire.write(ACK1_STATUS_CMD);
     responseSize = 1;
     break;
   default:
-    log_d("Sending default command");
+    log_i("Sending default command");
     Wire.write(ACK1_STATUS_CMD);
     responseSize = 1;
     break;
@@ -685,7 +680,7 @@ bool InputTaskHandler::ack1Response(uint8_t *data, size_t len)
   for (size_t i = 0; i < recv; i++)
   {
     data[i] = Wire.read();
-    log_v("Read response byte %d: %02x", i, data[i]);
+    log_d("Read response byte %d: %02x", i, data[i]);
   }
 
   return true;
@@ -709,8 +704,8 @@ void InputTaskHandler::ack1Tone(uint16_t freq)
   uint8_t toneData[2];
   toneData[0] = freq >> 8;
   toneData[1] = freq & 0xFF;
-  log_v("Tone freq: %d", freq);
-  log_v("Tone data: %02x %02x", toneData[0], toneData[1]);
+  log_d("Tone freq: %d", freq);
+  log_d("Tone data: %02x %02x", toneData[0], toneData[1]);
   ack1Command(ACK1_TONEON_CMD, toneData, 2);
 }
 
@@ -781,6 +776,8 @@ void InputTaskHandler::alphaNumPushChar(char ch)
   _alphaNum.writeDigitAscii(3, _alphaNumBuffer[3]);
 
   _alphaNum.writeDisplay();
+
+  log_i("AlphaNum buffer: %c%c%c%c", _alphaNumBuffer[0], _alphaNumBuffer[1], _alphaNumBuffer[2], _alphaNumBuffer[3]);
 }
 
 void InputTaskHandler::neoKeySetup()
@@ -830,14 +827,6 @@ void InputTaskHandler::neoKeyRead()
   _neoKeyJustReleasedIndex = -1;
 
   _neoKey.read();
-  if (_neoKeyJustPressedIndex >= 0)
-  {
-    log_d("NeoKey just pressed: %d", _neoKeyJustPressedIndex);
-  }
-  if (_neoKeyJustReleasedIndex >= 0)
-  {
-    log_d("NeoKey just released: %d", _neoKeyJustReleasedIndex);
-  }
 }
 
 void InputTaskHandler::neoKeyClear()
@@ -851,8 +840,7 @@ void InputTaskHandler::neoKeyClear()
 
 NeoKey1x4Callback InputTaskHandler::neoKeyCallbackStatic(keyEvent evt)
 {
-  log_d("Forwarding event: %d %s", evt.bit.NUM, evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING ? "rising" : "falling");
-  inputTask.neoKeyCallback(evt);
+  return inputTask.neoKeyCallback(evt);
 }
 
 NeoKey1x4Callback InputTaskHandler::neoKeyCallback(keyEvent evt)
@@ -869,6 +857,8 @@ NeoKey1x4Callback InputTaskHandler::neoKeyCallback(keyEvent evt)
     _neoKeyJustReleasedIndex = evt.bit.NUM;
     _neoKeyLastReleaseMillis = millis();
   }
+
+  return 0; // without this callback loops indefinitely
 }
 
 void InputTaskHandler::neoSliderSetup()
