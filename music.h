@@ -2,10 +2,6 @@
 
 #include <Arduino.h>
 
-const size_t NoteCount = 12;
-const char *Notes[] = {"C ", "Cs", "D ", "Ds", "E", "F", "Fs", "G", "Gs", "A", "As", "B"};
-const int NoteFrequencies[] = {261, 277, 293, 311, 329, 349, 369, 392, 415, 440, 466, 493};
-
 #define Cn 0  // C  (C normal)
 #define Cs 1  // C# (C sharp)
 #define Df Cs // Db (D flat)
@@ -24,11 +20,13 @@ const int NoteFrequencies[] = {261, 277, 293, 311, 329, 349, 369, 392, 415, 440,
 #define Bf As // Bb (B flat)
 #define Bn 11 // B  (B normal)
 #define SILENCE 12
+#define NOTE_COUNT 12
 #define OCTAVE_MASK 0xF000
 #define NOTE_MASK 0x0F00
 #define TIMING_MASK 0x00FF
 #define N(note, octave, timing) ((octave << 12) | (note << 8) | timing)
 #define PAUSE(timing) N(SILENCE, SILENCE, timing)
+#define NO_TONE PAUSE(0)
 #define TIMING_UNIT_MS 60
 #define A4_FREQUENCY 440.0
 #define MIN_OCTAVE 1
@@ -56,9 +54,9 @@ const int NoteFrequencies[] = {261, 277, 293, 311, 329, 349, 369, 392, 415, 440,
         OCTAVE_NOTES(7, timing), PAUSE(timing), \
         OCTAVE_NOTES(8, timing), PAUSE(timing)
 
-using PlayToneCallback = std::function<void(uint8_t, uint16_t)>;
+const char *Notes[] = {"C", "Cs", "D", "Ds", "E", "F", "Fs", "G", "Gs", "A", "As", "B"};
 
-// use macro to generate test notes over each octave with pause in between
+
 const uint16_t TestTheme[] PROGMEM = {ALL_NOTES(6)};
 const uint16_t TestThemeLength = sizeof(TestTheme) / sizeof(TestTheme[0]);
 
@@ -80,37 +78,20 @@ const uint16_t MaryHadALittleLamb[] PROGMEM = {
     N(Dn, 4, 10), N(Dn, 4, 10), N(En, 4, 10), N(Dn, 4, 10), N(Cn, 4, 10), N(Dn, 4, 10), N(En, 4, 20)};
 const uint16_t MaryHadALittleLambLength = sizeof(MaryHadALittleLamb) / sizeof(MaryHadALittleLamb[0]);
 
-const uint16_t SuperMarioTheme[] PROGMEM = {
-    N(En, 5, 9), N(En, 5, 9), PAUSE(3), N(En, 5, 9), PAUSE(3), N(En, 5, 9), PAUSE(9), N(Cn, 5, 9), N(En, 5, 9),
-    PAUSE(9), N(Gn, 5, 9), PAUSE(9), N(En, 5, 9), PAUSE(9), N(Gn, 4, 9), PAUSE(9), N(Cn, 5, 9), PAUSE(3), N(Gn, 4, 9),
-    PAUSE(3), N(Cn, 5, 9), PAUSE(9), N(Gn, 4, 9), PAUSE(9), N(En, 4, 9), PAUSE(9), N(An, 4, 9), PAUSE(9), N(Af, 4, 9),
-    N(Gn, 4, 9), PAUSE(3), N(Fn, 4, 9), N(Gn, 4, 9), PAUSE(9), N(En, 5, 9), PAUSE(9), N(Fn, 5, 9), PAUSE(9), N(SILENCE, SILENCE, 9)};
-const uint16_t SuperMarioThemeLength = sizeof(SuperMarioTheme) / sizeof(SuperMarioTheme[0]);
-
-const uint16_t TetrisTheme[] PROGMEM = {
-    N(En, 5, 9), N(En, 5, 9), PAUSE(3), N(En, 5, 9), PAUSE(3), N(En, 5, 9), PAUSE(9), N(Cn, 5, 9), N(En, 5, 9),
-    PAUSE(9), N(Gn, 5, 9), PAUSE(9), N(En, 5, 9), PAUSE(9), N(Gn, 4, 9), PAUSE(9), N(Cn, 5, 9), PAUSE(3), N(Gn, 4, 9),
-    PAUSE(3), N(Cn, 5, 9), PAUSE(9), N(Gn, 4, 9), PAUSE(9), N(En, 4, 9), PAUSE(9), N(An, 4, 9), PAUSE(9), N(Af, 4, 9),
-    N(Gn, 4, 9), PAUSE(3), N(Fn, 4, 9), N(Gn, 4, 9), PAUSE(9), N(En, 5, 9), PAUSE(9), N(Fn, 5, 9), PAUSE(9), N(SILENCE, SILENCE, 9)};
-const uint16_t TetrisThemeLength = sizeof(TetrisTheme) / sizeof(TetrisTheme[0]);
-
 const uint16_t T2Theme[] PROGMEM = {
-    N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(20),
-    N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(20),
-    N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(20),
-    N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(20),
-
+    N(Dn, 6, 20), N(Dn, 6, 20), PAUSE(10), N(Dn, 6, 20), PAUSE(10), N(Dn, 6, 20), N(Dn, 6, 20), PAUSE(20),
+    N(Dn, 6, 20), N(Dn, 6, 20), PAUSE(10), N(Dn, 6, 20), PAUSE(10), N(Dn, 6, 20), N(Dn, 6, 20), PAUSE(20),
+    //N(Dn, 6, 20), N(Dn, 6, 20), PAUSE(10), N(Dn, 6, 20), PAUSE(10), N(Dn, 6, 20), N(Dn, 6, 20), PAUSE(20),
+    //N(Dn, 6, 20), N(Dn, 6, 20), PAUSE(10), N(Dn, 6, 20), PAUSE(10), N(Dn, 6, 20), N(Dn, 6, 20), PAUSE(20),
     N(Dn, 6, 9), N(En, 6, 9), N(Fn, 6, 60), N(En, 6, 15), N(Cn, 6, 9), N(Fn, 5, 60),
     N(Dn, 6, 9), N(En, 6, 9), N(Fn, 6, 60), N(En, 6, 15), N(Cn, 6, 9), N(An, 6, 60), N(Gn, 6, 60),
     N(Dn, 6, 9), N(En, 6, 9), N(Fn, 6, 60), N(En, 6, 15), N(Cn, 6, 9), N(Gn, 5, 60),
     N(Fn, 5, 60), N(Dn, 5, 9), N(Fn, 5, 60), N(En, 5, 60)};
 const uint16_t T2ThemeLength = sizeof(T2Theme) / sizeof(T2Theme[0]);
 
-const uint16_t(*MusicThemes[]) PROGMEM = {TestTheme, TwinkleTwinkle, MaryHadALittleLamb, SuperMarioTheme, TetrisTheme, T2Theme};
+const uint16_t(*MusicThemes[]) PROGMEM = {TestTheme, TwinkleTwinkle, MaryHadALittleLamb, T2Theme};
+const size_t MusicThemeLengths[] = {TestThemeLength, TwinkleTwinkleLength, MaryHadALittleLambLength, T2ThemeLength};
 const size_t MusicThemeCount = sizeof(MusicThemes) / sizeof(MusicThemes[0]);
-
-// const uint16_t(*MusicThemes[]) PROGMEM = {TestTheme, T2Theme};
-// const MusicThemeCount = sizeof(MusicThemes) / sizeof(MusicThemes[0]);
 
 int getNoteFrequency(int note, int octave)
 {
@@ -126,6 +107,7 @@ int getNoteFrequency(int note, int octave)
     return frequency;
 }
 
+using PlayToneCallback = std::function<void(uint16_t)>;
 void playMusic(const uint16_t *music, size_t len, PlayToneCallback playTone)
 {
     for (int i = 0; i < len; i++)
@@ -135,9 +117,8 @@ void playMusic(const uint16_t *music, size_t len, PlayToneCallback playTone)
         uint8_t name = (note & NOTE_MASK) >> 8;
         uint8_t timing = note & TIMING_MASK;
 
-        int freq = getNoteFrequency(name, octave);
-        playTone(name, freq);
-        delay(timing * TIMING_UNIT_MS);
-        playTone(0, 0);
+        playTone(note);
+        delay((uint32_t)timing * TIMING_UNIT_MS);
+        playTone(NO_TONE);
     }
 }

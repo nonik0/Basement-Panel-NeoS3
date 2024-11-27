@@ -75,6 +75,7 @@ private:
     Lights,
     Blinky,
   };
+  const int ModeCount = 4;
 
   Mode _mode = Mode::MusicFreeplay;
   unsigned long _lastInput = 0;
@@ -164,7 +165,7 @@ private:
 
   void neoSliderSetup();
   void neoSliderRead();
-  void neoSliderClear();
+  void neoSliderClear(bool show = true);
 
   void rotarySetup();
   void rotaryRead();
@@ -282,7 +283,7 @@ void InputTaskHandler::updateMusicFreeplay()
   if (_neoKeyJustPressedIndex >= 0)
   {
     // ACK1 tone
-    int note = _neoKeyJustPressedIndex % NoteCount;
+    int note = _neoKeyJustPressedIndex % NOTE_COUNT;
     int octave = map(_neoSliderReading, 0, 1023, MIN_OCTAVE, MAX_OCTAVE);
     uint16_t freq = getNoteFrequency(note, octave);
     uint32_t color = wheel(map(_neoKeyJustPressedIndex, 0, SS_NEOKEY_COUNT, 0, 255));
@@ -308,6 +309,17 @@ void InputTaskHandler::updateMusicFreeplay()
     _rotaryNeoPixel.show();
   }
 
+  if (_neoSliderJustChanged)
+  {
+    int lastOctave = map(_neoSliderLastReading, 0, 1023, MIN_OCTAVE, MAX_OCTAVE);
+    int octave = map(_neoSliderReading, 0, 1023, MIN_OCTAVE, MAX_OCTAVE);
+
+    if (lastOctave != octave)
+    {
+      alphaNumShiftIn(std::to_string(octave).c_str());
+    }
+  }
+
   // turn off tone and light on release
   if (_neoKeyJustReleasedIndex >= 0)
   {
@@ -325,63 +337,68 @@ void InputTaskHandler::updateMusicPlay()
   {
     const uint16_t *music;
     size_t musicLen;
-    switch (_neoKeyJustPressedIndex)
-    {
-    case 0:
-      music = TestTheme;
-      musicLen = TestThemeLength;
-      break;
-    case 11:
-      music = T2Theme;
-      musicLen = T2ThemeLength;
-      break;
-    default:
-      // error tone
-      ack1Tone(1000);
-      delay(100);
-      ack1Tone(0);
-      delay(100);
-      ack1Tone(1000);
-      delay(100);
-      ack1Tone(0);
-      delay(100);
-    }
 
-    if (music != NULL)
+    if (_neoKeyJustPressedIndex < MusicThemeCount)
     {
       log_i("Playing music");
-      neoKeyClear();
+
       playMusic(
-          music,
-          musicLen,
-          [this](uint8_t note, uint16_t freq)
+          MusicThemes[_neoKeyJustPressedIndex],
+          MusicThemeLengths[_neoKeyJustPressedIndex],
+          [this](uint16_t note)
           {
             neoKeyClear(false);
+            neoSliderClear(false);
+
+            uint8_t octave = (note & OCTAVE_MASK) >> 12;
+            uint8_t noteIndex = (note & NOTE_MASK) >> 8;
+            uint8_t timing = note & TIMING_MASK;
+            int freq = getNoteFrequency(noteIndex, octave);
 
             if (freq == 0)
             {
               ack1Tone(0);
               _neoKey.show();
+              _neoSliderPixels.show();
               return;
             }
 
-            log_i("Playing note %d at %d Hz", note, freq);
-            Serial.flush();
-
-            uint32_t color = wheel(map(note, 0, SS_NEOKEY_COUNT, 0, 255));
-            _neoKey.setPixelColor(note, color);
-            _neoKey.show();
             ack1Tone(freq);
 
-            const char *noteName = Notes[note];
+            // show note on key
+            uint32_t color = wheel(map(noteIndex, 0, SS_NEOKEY_COUNT, 0, 255));
+            _neoKey.setPixelColor(noteIndex, color);
+            _neoKey.show();
+
+            // show octave on slider
+            if (octave % 2 == 0) {
+              color = color & 0x7F7F7F;
+            }
+            _neoSliderPixels.setPixelColor(octave / 2, color);
+            _neoSliderPixels.show();
+
+            // show note on alphanum
+            const char *noteName = Notes[noteIndex];
             alphaNumShiftIn(noteName);
           });
 
-      music = NULL;
-      ack1Tone(0);
-      showMusicMenu();
       log_i("Music complete");
     }
+    else
+    {
+      // error tone
+      ack1Tone(1000);
+      delay(100);
+      ack1Tone(0);
+
+      delay(100);
+
+      ack1Tone(1000);
+      delay(100);
+      ack1Tone(0);
+    }
+
+    showMusicMenu();
   }
 }
 
@@ -517,7 +534,7 @@ void InputTaskHandler::changeMode(int desiredMode)
     return;
   }
 
-  _mode = (Mode)(desiredMode > 0 ? desiredMode % 3 : (_mode + 1) % 3);
+  _mode = (Mode)(desiredMode > 0 ? desiredMode % ModeCount : (_mode + 1) % ModeCount);
 
   if (_mode == MusicFreeplay)
   {
@@ -710,7 +727,7 @@ bool InputTaskHandler::ack1Command(uint8_t cmd, const uint8_t *data, size_t len)
 
     for (size_t i = 0; i < responseSize; i++)
     {
-      log_i("Response byte %d: %02x", i, responseBytes[i]);
+      log_d("Response byte %d: %02x", i, responseBytes[i]);
     }
   }
   else
@@ -796,6 +813,8 @@ void InputTaskHandler::alphaNumSetup()
     log_e("Couldn't find AlphaNum seesaw on default address");
     return;
   }
+
+  _alphaNum.setBrightness(8);
 
   _alphaNum.writeDigitRaw(3, 0x0);
   _alphaNum.writeDigitRaw(0, 0xFFFF);
@@ -981,7 +1000,7 @@ void InputTaskHandler::neoSliderRead()
 
   uint16_t newReading = 1023 - _neoSliderSs.analogRead(SS_NEOSLIDER_SLD_PIN); // invert slider reading
 
-  if (newReading != _neoSliderReading && millis() - _neoSliderLastChangeMillis > 100)
+  if (newReading != _neoSliderReading && millis() - _neoSliderLastChangeMillis > 10)
   {
     log_d("NeoSlider reading: %d", newReading);
     _neoSliderLastReading = _neoSliderReading;
@@ -992,13 +1011,17 @@ void InputTaskHandler::neoSliderRead()
   }
 }
 
-void InputTaskHandler::neoSliderClear()
+void InputTaskHandler::neoSliderClear(bool show)
 {
   for (int i = 0; i < SS_NEOSLIDER_LED_COUNT; i++)
   {
     _neoSliderPixels.setPixelColor(i, 0x000000);
   }
-  _neoSliderPixels.show();
+
+  if (show)
+  {
+    _neoSliderPixels.show();
+  }
 }
 
 void InputTaskHandler::rotarySetup()
