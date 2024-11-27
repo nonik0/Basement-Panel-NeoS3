@@ -32,7 +32,8 @@
 #define SS_NEOKEY1_ADDR 0x30
 #define SS_NEOKEY2_ADDR 0x31
 #define SS_NEOKEY3_ADDR 0x32
-#define SS_NEOKEY_COUNT 4 * 3
+#define SS_NEOKEY_KEY_COUNT 4
+#define SS_NEOKEY_COUNT 3 * SS_NEOKEY_KEY_COUNT
 
 #define SS_ROTARY_ADDR 0x36
 #define SS_ROTARY_LED_PIN 6
@@ -59,12 +60,19 @@ const std::tuple<uint8_t, uint16_t> AlphaNumFigure8Path[] = {
     {0, ALPHANUM_SEG_A}, {1, ALPHANUM_SEG_H}, {1, ALPHANUM_SEG_N}, {2, ALPHANUM_SEG_D}, {3, ALPHANUM_SEG_D}, {3, ALPHANUM_SEG_C}, {3, ALPHANUM_SEG_B}, {3, ALPHANUM_SEG_A}, {2, ALPHANUM_SEG_G2}, {2, ALPHANUM_SEG_K}, {1, ALPHANUM_SEG_L}, {0, ALPHANUM_SEG_D}, {0, ALPHANUM_SEG_E}, {0, ALPHANUM_SEG_F}};
 const int AlphaNumFigure8PathLength = sizeof(AlphaNumFigure8Path) / sizeof(AlphaNumFigure8Path[0]);
 
-const std::tuple<uint8_t, uint16_t> AlphaNumStarPath[] = {{0, ALPHANUM_SEG_J}, {0, ALPHANUM_SEG_K}, {0, ALPHANUM_SEG_G2}, {0, ALPHANUM_SEG_M}, {0, ALPHANUM_SEG_L}, {0, ALPHANUM_SEG_G1}, {0, ALPHANUM_SEG_J}, {0, ALPHANUM_SEG_H}};
-const int AlphaNumStarPathLength = sizeof(AlphaNumStarPath) / sizeof(AlphaNumStarPath[0]);
+const std::tuple<uint8_t, uint16_t> AlphaNumWavyPath[] = {
+    {0, ALPHANUM_SEG_A}, {1, ALPHANUM_SEG_H}, {1, ALPHANUM_SEG_N}, {2, ALPHANUM_SEG_L}, {2, ALPHANUM_SEG_K}, {3, ALPHANUM_SEG_A}, {3, ALPHANUM_SEG_B}, {3, ALPHANUM_SEG_C}, {3, ALPHANUM_SEG_D}, {2, ALPHANUM_SEG_N}, {2, ALPHANUM_SEG_H}, {1, ALPHANUM_SEG_K}, {1, ALPHANUM_SEG_L}, {0, ALPHANUM_SEG_D}, {0, ALPHANUM_SEG_E}, {0, ALPHANUM_SEG_F}};
+const int AlphaNumWavyPathLength = sizeof(AlphaNumWavyPath) / sizeof(AlphaNumWavyPath[0]);
 
-const std::tuple<uint8_t, uint16_t> *AlphaNumPaths[] = {AlphaNumLoopPath, AlphaNumFigure8Path, AlphaNumStarPath};
-int AlphaNumPathLengths[] = {AlphaNumLoopPathLength, AlphaNumFigure8PathLength, AlphaNumStarPathLength};
+const std::tuple<uint8_t, uint16_t> AlphaNumZLoopPath[] = {
+    {0, ALPHANUM_SEG_A}, {1, ALPHANUM_SEG_A}, {2, ALPHANUM_SEG_A}, {3, ALPHANUM_SEG_A}, {3, ALPHANUM_SEG_B}, {3, ALPHANUM_SEG_G2}, {3, ALPHANUM_SEG_G1}, {2, ALPHANUM_SEG_G2}, {2, ALPHANUM_SEG_G1}, {1, ALPHANUM_SEG_G2}, {1, ALPHANUM_SEG_G1}, {0, ALPHANUM_SEG_G2}, {0, ALPHANUM_SEG_G1}, {0, ALPHANUM_SEG_E}, {0, ALPHANUM_SEG_D}, {1, ALPHANUM_SEG_D}, {2, ALPHANUM_SEG_D}, {3, ALPHANUM_SEG_D}, {3, ALPHANUM_SEG_C}, {3, ALPHANUM_SEG_G2}, {3, ALPHANUM_SEG_G1}, {2, ALPHANUM_SEG_G2}, {2, ALPHANUM_SEG_G1}, {1, ALPHANUM_SEG_G2}, {1, ALPHANUM_SEG_G1}, {0, ALPHANUM_SEG_G2}, {0, ALPHANUM_SEG_G1}, {0, ALPHANUM_SEG_F}};
+const int AlphaNumZLoopPathLength = sizeof(AlphaNumZLoopPath) / sizeof(AlphaNumZLoopPath[0]);
+
+const std::tuple<uint8_t, uint16_t> *AlphaNumPaths[] = {AlphaNumLoopPath, AlphaNumFigure8Path, AlphaNumWavyPath, AlphaNumZLoopPath};
+int AlphaNumPathLengths[] = {AlphaNumLoopPathLength, AlphaNumFigure8PathLength, AlphaNumWavyPathLength, AlphaNumZLoopPathLength};
 int AlphaNumPathCount = sizeof(AlphaNumPaths) / sizeof(AlphaNumPaths[0]);
+const char *Ack1BootMessage = "Hello world!";
+const char *Ack1Message = "Dad loves Stella and Beau!";
 
 class MusicMatrixTaskHandler : public DisplayTaskHandler
 {
@@ -84,12 +92,11 @@ private:
 
   bool _ack1Init = false;
   bool _ack1Display = false;
-  const char *_ack1BootMessage = "Hello world!";
-  const char *_ack1Message = "Dad loves Stella and Beau!";
 
   bool _alphaNumInit = false;
   Adafruit_AlphaNum4 _alphaNum = Adafruit_AlphaNum4();
   char _alphaNumBuffer[ALPHANUM_CHAR_COUNT] = {' ', ' ', ' ', ' '};
+  uint16_t _alphaNumRawBuffer[ALPHANUM_CHAR_COUNT];
   int _alphaNumBlinkyDelay;
   int _alphaNumBlinkyIndex;
   int _alphaNumPathIndex;
@@ -104,7 +111,7 @@ private:
   int _neoKeyJustReleasedIndex = -1;
   // light/blinky mode state
   bool _neoKeyPixelState[SS_NEOKEY_COUNT];
-  int _neoKeyBlinkyDelay[SS_NEOKEY_COUNT]; // blinky state
+  int _neoKeyBlinkyDelay[SS_NEOKEY_COUNT];
 
   bool _neoSliderInit = false;
   Adafruit_seesaw _neoSliderSs;
@@ -139,13 +146,15 @@ public:
 private:
   void task(void *parameters) override;
   void update();
+
   void updateMusicFreeplay();
   void updateMusicPlay();
   void updateLights();
   void updateBlinky();
-  uint32_t wheel(uint8_t wheelPos);
   void changeMode(int mode = -1);
+
   void showMusicMenu();
+  uint32_t wheel(uint8_t wheelPos);
 
   void ack1Setup();
   bool ack1Command(uint8_t cmd, const uint8_t *data = NULL, size_t len = 0);
@@ -458,17 +467,20 @@ void MusicMatrixTaskHandler::updateBlinky()
   if (--_alphaNumBlinkyDelay < 0)
   {
     _alphaNum.clear();
-    _alphaNumBuffer[3] = _alphaNumBuffer[2] = _alphaNumBuffer[1] = _alphaNumBuffer[0] = 0;
+    _alphaNumRawBuffer[3] = _alphaNumRawBuffer[2] = _alphaNumRawBuffer[1] = _alphaNumRawBuffer[0] = 0;
     for (int i = 0; i < 3; i++)
     {
-      auto index = (_alphaNumBlinkyIndex + i) % AlphaNumPathLengths[_alphaNumPathIndex];
-      const auto [digit, bitmask] = AlphaNumPaths[_alphaNumPathIndex][index];
-      _alphaNumBuffer[digit] |= bitmask;
+      int index = (_alphaNumBlinkyIndex + i) % AlphaNumPathLengths[_alphaNumPathIndex];
+
+      uint8_t digit;
+      uint16_t bitmask;
+      std::tie(digit, bitmask) = AlphaNumPaths[_alphaNumPathIndex][index];
+      _alphaNumRawBuffer[digit] |= bitmask;
     }
-    _alphaNum.writeDigitRaw(0, _alphaNumBuffer[0]);
-    _alphaNum.writeDigitRaw(1, _alphaNumBuffer[1]);
-    _alphaNum.writeDigitRaw(2, _alphaNumBuffer[2]);
-    _alphaNum.writeDigitRaw(3, _alphaNumBuffer[3]);
+    _alphaNum.writeDigitRaw(0, _alphaNumRawBuffer[0]);
+    _alphaNum.writeDigitRaw(1, _alphaNumRawBuffer[1]);
+    _alphaNum.writeDigitRaw(2, _alphaNumRawBuffer[2]);
+    _alphaNum.writeDigitRaw(3, _alphaNumRawBuffer[3]);
     _alphaNum.writeDisplay();
 
     _alphaNumBlinkyIndex = (_alphaNumBlinkyIndex + 1) % AlphaNumPathLengths[_alphaNumPathIndex];
@@ -515,24 +527,10 @@ void MusicMatrixTaskHandler::updateBlinky()
   }
 }
 
-uint32_t MusicMatrixTaskHandler::wheel(uint8_t wheelPos)
-{
-  wheelPos = 255 - wheelPos;
-  if (wheelPos < 85)
-  {
-    return seesaw_NeoPixel::Color(255 - wheelPos * 3, 0, wheelPos * 3);
-  }
-  if (wheelPos < 170)
-  {
-    wheelPos -= 85;
-    return seesaw_NeoPixel::Color(0, wheelPos * 3, 255 - wheelPos * 3);
-  }
-  wheelPos -= 170;
-  return seesaw_NeoPixel::Color(wheelPos * 3, 255 - wheelPos * 3, 0);
-}
-
 void MusicMatrixTaskHandler::changeMode(int desiredMode)
 {
+  const int ModeChangeDelay = 1000;
+
   if (!_ack1Init || !_neoKeyInit || !_neoSliderInit || !_rotaryInit)
   {
     log_e("Not all components initialized");
@@ -546,7 +544,7 @@ void MusicMatrixTaskHandler::changeMode(int desiredMode)
     log_i("Switching to Music mode");
     alphaNumShiftIn("Play");
     neoKeyDisplay('1');
-    delay(500);
+    delay(ModeChangeDelay);
 
     alphaNumClear();
     neoKeyClear();
@@ -558,7 +556,7 @@ void MusicMatrixTaskHandler::changeMode(int desiredMode)
     log_i("Switching to MusicPlay mode");
     alphaNumShiftIn("Song");
     neoKeyDisplay('2');
-    delay(500);
+    delay(ModeChangeDelay);
 
     alphaNumClear();
     neoKeyClear();
@@ -572,7 +570,7 @@ void MusicMatrixTaskHandler::changeMode(int desiredMode)
     log_i("Switching to Lights mode");
     alphaNumShiftIn("Lite");
     neoKeyDisplay('3');
-    delay(500);
+    delay(ModeChangeDelay);
 
     alphaNumClear();
 
@@ -601,7 +599,7 @@ void MusicMatrixTaskHandler::changeMode(int desiredMode)
     log_i("Switching to Blinky mode");
     alphaNumShiftIn("Blnk");
     neoKeyDisplay('4');
-    delay(500);
+    delay(ModeChangeDelay);
 
     // choose random animation
     alphaNumClear();
@@ -645,6 +643,22 @@ void MusicMatrixTaskHandler::showMusicMenu()
   _neoKey.show();
 }
 
+uint32_t MusicMatrixTaskHandler::wheel(uint8_t wheelPos)
+{
+  wheelPos = 255 - wheelPos;
+  if (wheelPos < 85)
+  {
+    return seesaw_NeoPixel::Color(255 - wheelPos * 3, 0, wheelPos * 3);
+  }
+  if (wheelPos < 170)
+  {
+    wheelPos -= 85;
+    return seesaw_NeoPixel::Color(0, wheelPos * 3, 255 - wheelPos * 3);
+  }
+  wheelPos -= 170;
+  return seesaw_NeoPixel::Color(wheelPos * 3, 255 - wheelPos * 3, 0);
+}
+
 void MusicMatrixTaskHandler::ack1Setup()
 {
   if (_ack1Init)
@@ -667,7 +681,7 @@ void MusicMatrixTaskHandler::ack1Setup()
     return;
   }
 
-  ack1Command(ACK1_LEDSCROLL_CMD, (uint8_t *)_ack1BootMessage, strlen(_ack1BootMessage));
+  ack1Command(ACK1_LEDSCROLL_CMD, (uint8_t *)Ack1BootMessage, strlen(Ack1BootMessage));
   log_d("ACK1 status: %d", ack1Command(ACK1_STATUS_CMD));
   _ack1Display = true;
 }
@@ -815,7 +829,7 @@ void MusicMatrixTaskHandler::ack1Tone(uint16_t freq)
 
 void MusicMatrixTaskHandler::ack1Wake()
 {
-  ack1Command(ACK1_LEDSCROLL_CMD, (uint8_t *)_ack1Message, strlen(_ack1Message));
+  ack1Command(ACK1_LEDSCROLL_CMD, (uint8_t *)Ack1Message, strlen(Ack1Message));
 }
 
 void MusicMatrixTaskHandler::alphaNumSetup()
@@ -958,14 +972,17 @@ void MusicMatrixTaskHandler::neoKeyClear(bool show)
 
 void MusicMatrixTaskHandler::neoKeyDisplay(char c)
 {
+  c -= (uint8_t)pgm_read_byte(&Font3x4.first); // Adjust the character index
+
   GFXglyph *glyph = &(((GFXglyph *)pgm_read_ptr(&Font3x4.glyph))[c]);
   uint8_t *bitmap = (uint8_t *)pgm_read_ptr(&Font3x4.bitmap);
 
   uint16_t bo = pgm_read_word(&glyph->bitmapOffset);
   uint8_t w = pgm_read_byte(&glyph->width);
   uint8_t h = pgm_read_byte(&glyph->height);
-  int8_t xo = pgm_read_byte(&glyph->xOffset);
-  int8_t yo = pgm_read_byte(&glyph->yOffset);
+  // ignore offsets for single char display
+  // int8_t xo = pgm_read_byte(&glyph->xOffset);
+  // int8_t yo = pgm_read_byte(&glyph->yOffset);
 
   uint8_t x, y, bits = 0, bit = 0;
   uint32_t color = wheel(random(0, 255));
@@ -982,10 +999,8 @@ void MusicMatrixTaskHandler::neoKeyDisplay(char c)
       }
       if (bits & 0x80)
       {
-        int xp = xo + x;
-        int yp = yo + y;
-        int i = xp + yp * 4;
-        _neoKey.setPixelColor(i, color);
+        uint8_t yi = (h - 1) - y; // invert y
+        _neoKey.setPixelColor(x * 4 + yi, color);
       }
       bits <<= 1;
     }
@@ -1105,11 +1120,6 @@ void MusicMatrixTaskHandler::rotarySetup()
   _rotaryNeoPixel.show();
   _rotarySs.pinMode(SS_ROTARY_BTN_PIN, INPUT_PULLUP);
   _rotaryEncPos = _rotarySs.getEncoderPosition();
-
-  // Serial.println("Turning on interrupts");
-  // delay(10);
-  // rotarySs.setGPIOInterrupts((uint32_t)1 << SS_ROTARY_ENC_PIN, 1);
-  // rotarySs.enableEncoderInterrupt();
 
   _rotaryInit = true;
 
