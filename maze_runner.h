@@ -65,7 +65,7 @@ private:
   bool **_mazeWalls;
   int _mazeExtraWallsToRemove = 1;
 
-  uint32_t _offColor;
+  uint32_t _pathColor;
   uint32_t _wallColor;
 
   Location _runnerLoc = NullLocation;
@@ -86,11 +86,16 @@ private:
 
   // function callback to draw pixels
   std::function<void(int, int, uint32_t)> _drawPixel;
+  std::function<void(uint32_t)> _setStatus;
 
 public:
-  MazeRunner(int width, int height, uint32_t offColor, uint32_t wallColor, uint32_t runnerColor, uint32_t sentryColor, uint32_t exitColor, std::function<void(int, int, uint32_t)> drawPixel);
-  MazeRunner(int width, int height, uint32_t offColor, uint32_t wallColor, uint32_t runnerColor, uint32_t exitColor, std::function<void(int, int, uint32_t)> drawPixel)
-      : MazeRunner(width, height, offColor, wallColor, runnerColor, offColor, exitColor, drawPixel) {}
+  MazeRunner(
+      int width, int height,
+      uint32_t pathColor, uint32_t wallColor,
+      uint32_t runnerColor, uint32_t sentryColor,
+      uint32_t exitColor,
+      std::function<void(int, int, uint32_t)> drawPixel,
+      std::function<void(uint32_t)> setStatus = nullptr);
 
   void init();
   bool update(); // returns true if any pixel changed
@@ -119,16 +124,18 @@ private:
   void shuffleDirections(Direction *list, int size);
 };
 
-MazeRunner::MazeRunner(int width, int height, uint32_t offColor, uint32_t wallColor, uint32_t runnerColor, uint32_t sentryColor, uint32_t exitColor, std::function<void(int, int, uint32_t)> drawPixel)
+MazeRunner::MazeRunner(int width, int height, uint32_t pathColor, uint32_t wallColor, uint32_t runnerColor, uint32_t sentryColor,
+                       uint32_t exitColor, std::function<void(int, int, uint32_t)> drawPixel, std::function<void(uint32_t)> setStatus)
 {
   _width = width;
   _height = height;
-  _offColor = offColor;
+  _pathColor = pathColor;
   _wallColor = wallColor;
   _runnerColor = runnerColor;
   _sentryColor = sentryColor;
   _exitColor = exitColor;
   _drawPixel = drawPixel;
+  _setStatus = setStatus;
 
   _mazeWalls = new bool *[_height];
   for (int i = 0; i < _height; i++)
@@ -187,6 +194,7 @@ bool MazeRunner::update()
     if (_runnerLoc == _exitLoc)
     {
       log_d("Runner reached exit");
+      _setStatus(_runnerColor);
       drawMaze(); // redraw runner on goal
       _resetDelay = GoalDelay;
       return true;
@@ -197,6 +205,7 @@ bool MazeRunner::update()
     {
       log_d("Runner caught by sentry");
       // don't redraw sentry on runner
+      _setStatus(_sentryColor);
       _resetDelay = CatchDelay;
       return true;
     }
@@ -211,8 +220,8 @@ bool MazeRunner::update()
   catch (const std::exception &e)
   {
     log_e("Error in maze runner update: %s", e.what());
+    _setStatus(_exitColor);
     _resetDelay = ErrorDelay;
-    // TODO: display error visually somehow
     return false;
   }
 }
@@ -260,7 +269,7 @@ bool MazeRunner::moveRunner()
 
 bool MazeRunner::moveSentry()
 {
-  if (_sentryColor == _offColor)
+  if (_sentryColor == _pathColor)
   {
     return false;
   }
@@ -323,7 +332,7 @@ void MazeRunner::drawMaze()
   {
     for (int x = 0; x < _width; x++)
     {
-      _drawPixel(x, y, _mazeWalls[y][x] ? _wallColor : _offColor);
+      _drawPixel(x, y, _mazeWalls[y][x] ? _wallColor : _pathColor);
     }
   }
 
@@ -454,7 +463,7 @@ void MazeRunner::placeRunner()
 
 void MazeRunner::placeSentry()
 {
-  if (_sentryColor == _offColor)
+  if (_sentryColor == _pathColor)
   {
     return;
   }
@@ -487,6 +496,7 @@ void MazeRunner::placeExit()
   if (path.size() == 0)
   {
     log_e("Failed to find path to exit");
+    _setStatus(_exitColor);
     _resetDelay = ErrorDelay;
     return;
   }

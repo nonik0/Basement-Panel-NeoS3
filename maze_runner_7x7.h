@@ -18,15 +18,18 @@ private:
     const uint32_t BLUE = Adafruit_NeoPixel::Color(0x00, 0x00, 0x77);
     const uint32_t PURPLE = Adafruit_NeoPixel::Color(0x77, 0x00, 0x77);
     static const uint8_t EN_PIN = 39;
-    static const uint8_t DATA_PIN = 16;
+    static const uint8_t RGB_LED_MATRIX_PIN = 16;
+    static const uint8_t RGB_LED_PIN = 40;
+    static const uint8_t BLUE_LED_PIN = 13;
     static const int WIDTH = 7;
     static const int HEIGHT = 7;
 
-    Adafruit_NeoPixel _pixels;
+    Adafruit_NeoPixel _matrix;
+    Adafruit_NeoPixel _rgbLed;
     MazeRunner *_mazeRunner;
 
 public:
-    MazeRunner7x7TaskHandler() : _pixels(WIDTH * HEIGHT, DATA_PIN) {}
+    MazeRunner7x7TaskHandler() : _rgbLed(1, RGB_LED_PIN), _matrix(WIDTH * HEIGHT, RGB_LED_MATRIX_PIN) {}
 
     bool createTask() override;
     void setDisplay(bool display) override;
@@ -48,8 +51,16 @@ bool MazeRunner7x7TaskHandler::createTask()
     pinMode(EN_PIN, OUTPUT);
     digitalWrite(EN_PIN, true);
 
-    _pixels.begin();
-    _pixels.setBrightness(10);
+    pinMode(BLUE_LED_PIN, OUTPUT);
+    digitalWrite(BLUE_LED_PIN, false);
+
+    _matrix.begin();
+    _matrix.setBrightness(10);
+
+    _rgbLed.begin();
+    _rgbLed.setBrightness(20);
+    _rgbLed.setPixelColor(0, GREEN);
+    _rgbLed.show();
 
     _mazeRunner = new MazeRunner(
         WIDTH,
@@ -60,7 +71,9 @@ bool MazeRunner7x7TaskHandler::createTask()
         RED,    // sentry
         PURPLE, // exit
         [this](int x, int y, uint32_t c)
-        { _pixels.setPixelColor(y * WIDTH + x, c); });
+        { _matrix.setPixelColor(y * WIDTH + x, c); },
+        [this](uint32_t c)
+        { _rgbLed.setPixelColor(0, c); if (c == PURPLE) { digitalWrite(BLUE_LED_PIN, true); } });
 
     _mazeRunner->init();
 
@@ -85,7 +98,8 @@ void MazeRunner7x7TaskHandler::task(void *parameters)
     {
         if (_display && _mazeRunner->update())
         {
-            _pixels.show();
+            _matrix.show();
+            _rgbLed.show();
         }
         delay(MAZE_DELAY_MS);
     }

@@ -7,8 +7,8 @@ protected:
     static const int MaxMessageSize = 100;
 
     bool _display = true;
-    TaskHandle_t _taskHandle = NULL;
     char _message[MaxMessageSize];
+    TaskHandle_t _taskHandle = NULL;
 
 public:
     virtual bool createTask() = 0;

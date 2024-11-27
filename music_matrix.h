@@ -7,6 +7,7 @@
 #include <tuple>
 
 #include "display_task_handler.h"
+#include "font3x4.h"
 #include "music.h"
 
 #define ACK1_ADDR 0x10
@@ -47,8 +48,8 @@
 #define BASE_DELAY 40
 
 // I hate this
-class InputTaskHandler;
-extern InputTaskHandler inputTask;
+class MusicMatrixTaskHandler;
+extern MusicMatrixTaskHandler musicMatrix;
 
 const std::tuple<uint8_t, uint16_t> AlphaNumLoopPath[] = {
     {0, ALPHANUM_SEG_A}, {1, ALPHANUM_SEG_A}, {2, ALPHANUM_SEG_A}, {3, ALPHANUM_SEG_A}, {3, ALPHANUM_SEG_B}, {3, ALPHANUM_SEG_C}, {3, ALPHANUM_SEG_D}, {2, ALPHANUM_SEG_D}, {1, ALPHANUM_SEG_D}, {0, ALPHANUM_SEG_D}, {0, ALPHANUM_SEG_E}, {0, ALPHANUM_SEG_F}};
@@ -65,7 +66,7 @@ const std::tuple<uint8_t, uint16_t> *AlphaNumPaths[] = {AlphaNumLoopPath, AlphaN
 int AlphaNumPathLengths[] = {AlphaNumLoopPathLength, AlphaNumFigure8PathLength, AlphaNumStarPathLength};
 int AlphaNumPathCount = sizeof(AlphaNumPaths) / sizeof(AlphaNumPaths[0]);
 
-class InputTaskHandler : public DisplayTaskHandler
+class MusicMatrixTaskHandler : public DisplayTaskHandler
 {
 private:
   enum Mode
@@ -130,7 +131,7 @@ private:
   int _rotaryBlinkyDelay;
 
 public:
-  InputTaskHandler() {}
+  MusicMatrixTaskHandler() {}
 
   bool createTask() override;
   void setDisplay(bool display);
@@ -160,6 +161,7 @@ private:
   void neoKeySetup();
   void neoKeyRead();
   void neoKeyClear(bool show = true);
+  void neoKeyDisplay(char c);
   NeoKey1x4Callback neoKeyCallback(keyEvent evt);
   static NeoKey1x4Callback neoKeyCallbackStatic(keyEvent evt);
 
@@ -172,7 +174,7 @@ private:
   void rotaryClear();
 };
 
-bool InputTaskHandler::createTask()
+bool MusicMatrixTaskHandler::createTask()
 {
   log_i("Starting input setup");
 
@@ -200,7 +202,7 @@ bool InputTaskHandler::createTask()
   return true;
 }
 
-void InputTaskHandler::setDisplay(bool displayState)
+void MusicMatrixTaskHandler::setDisplay(bool displayState)
 {
   DisplayTaskHandler::setDisplay(displayState);
 
@@ -218,7 +220,7 @@ void InputTaskHandler::setDisplay(bool displayState)
   }
 }
 
-void InputTaskHandler::task(void *parameters)
+void MusicMatrixTaskHandler::task(void *parameters)
 {
   while (1)
   {
@@ -235,7 +237,7 @@ void InputTaskHandler::task(void *parameters)
   }
 }
 
-void InputTaskHandler::update()
+void MusicMatrixTaskHandler::update()
 {
   // timeout to blinky mode
   if (_mode != Mode::Blinky && millis() - _lastInput > InputTimeout)
@@ -278,7 +280,7 @@ void InputTaskHandler::update()
   }
 }
 
-void InputTaskHandler::updateMusicFreeplay()
+void MusicMatrixTaskHandler::updateMusicFreeplay()
 {
   if (_neoKeyJustPressedIndex >= 0)
   {
@@ -297,11 +299,11 @@ void InputTaskHandler::updateMusicFreeplay()
     _neoKey.setPixelColor(_neoKeyJustPressedIndex, color);
     _neoKey.show();
 
-    // neoslider color
-    for (uint8_t i = 0; i < _neoSliderPixels.numPixels(); i++)
+    if (octave % 2 == 0)
     {
-      _neoSliderPixels.setPixelColor(i, color);
+      color = color & 0x7F7F7F;
     }
+    _neoSliderPixels.setPixelColor(4 - octave / 2, color);
     _neoSliderPixels.show();
 
     // rotary color
@@ -326,11 +328,13 @@ void InputTaskHandler::updateMusicFreeplay()
     _neoKey.setPixelColor(_neoKeyJustReleasedIndex, 0x0);
     _neoKey.show();
 
+    neoSliderClear();
+
     ack1Tone(0);
   }
 }
 
-void InputTaskHandler::updateMusicPlay()
+void MusicMatrixTaskHandler::updateMusicPlay()
 {
   // pressing neokey starts playing song
   if (_neoKeyJustPressedIndex >= 0)
@@ -371,10 +375,11 @@ void InputTaskHandler::updateMusicPlay()
             _neoKey.show();
 
             // show octave on slider
-            if (octave % 2 == 0) {
+            if (octave % 2 == 0)
+            {
               color = color & 0x7F7F7F;
             }
-            _neoSliderPixels.setPixelColor(octave / 2, color);
+            _neoSliderPixels.setPixelColor(4 - octave / 2, color); // slider is oriented inverted
             _neoSliderPixels.show();
 
             // show note on alphanum
@@ -402,7 +407,7 @@ void InputTaskHandler::updateMusicPlay()
   }
 }
 
-void InputTaskHandler::updateLights()
+void MusicMatrixTaskHandler::updateLights()
 {
   if (_neoKeyJustPressedIndex >= 0)
   {
@@ -441,7 +446,7 @@ void InputTaskHandler::updateLights()
   }
 }
 
-void InputTaskHandler::updateBlinky()
+void MusicMatrixTaskHandler::updateBlinky()
 {
   // pressing neokey resets light delay
   if (_neoKeyJustPressedIndex >= 0)
@@ -510,7 +515,7 @@ void InputTaskHandler::updateBlinky()
   }
 }
 
-uint32_t InputTaskHandler::wheel(uint8_t wheelPos)
+uint32_t MusicMatrixTaskHandler::wheel(uint8_t wheelPos)
 {
   wheelPos = 255 - wheelPos;
   if (wheelPos < 85)
@@ -526,7 +531,7 @@ uint32_t InputTaskHandler::wheel(uint8_t wheelPos)
   return seesaw_NeoPixel::Color(wheelPos * 3, 255 - wheelPos * 3, 0);
 }
 
-void InputTaskHandler::changeMode(int desiredMode)
+void MusicMatrixTaskHandler::changeMode(int desiredMode)
 {
   if (!_ack1Init || !_neoKeyInit || !_neoSliderInit || !_rotaryInit)
   {
@@ -539,6 +544,10 @@ void InputTaskHandler::changeMode(int desiredMode)
   if (_mode == MusicFreeplay)
   {
     log_i("Switching to Music mode");
+    alphaNumShiftIn("Play");
+    neoKeyDisplay('1');
+    delay(500);
+
     alphaNumClear();
     neoKeyClear();
     neoSliderClear();
@@ -547,6 +556,9 @@ void InputTaskHandler::changeMode(int desiredMode)
   else if (_mode == MusicPlay)
   {
     log_i("Switching to MusicPlay mode");
+    alphaNumShiftIn("Song");
+    neoKeyDisplay('2');
+    delay(500);
 
     alphaNumClear();
     neoKeyClear();
@@ -558,6 +570,9 @@ void InputTaskHandler::changeMode(int desiredMode)
   else if (_mode == Lights)
   {
     log_i("Switching to Lights mode");
+    alphaNumShiftIn("Lite");
+    neoKeyDisplay('3');
+    delay(500);
 
     alphaNumClear();
 
@@ -584,6 +599,9 @@ void InputTaskHandler::changeMode(int desiredMode)
   else if (_mode == Blinky)
   {
     log_i("Switching to Blinky mode");
+    alphaNumShiftIn("Blnk");
+    neoKeyDisplay('4');
+    delay(500);
 
     // choose random animation
     alphaNumClear();
@@ -617,7 +635,7 @@ void InputTaskHandler::changeMode(int desiredMode)
   }
 }
 
-void InputTaskHandler::showMusicMenu()
+void MusicMatrixTaskHandler::showMusicMenu()
 {
   for (int i = 0; i < SS_NEOKEY_COUNT; i++)
   {
@@ -627,7 +645,7 @@ void InputTaskHandler::showMusicMenu()
   _neoKey.show();
 }
 
-void InputTaskHandler::ack1Setup()
+void MusicMatrixTaskHandler::ack1Setup()
 {
   if (_ack1Init)
   {
@@ -654,7 +672,7 @@ void InputTaskHandler::ack1Setup()
   _ack1Display = true;
 }
 
-bool InputTaskHandler::ack1Command(uint8_t cmd, const uint8_t *data, size_t len)
+bool MusicMatrixTaskHandler::ack1Command(uint8_t cmd, const uint8_t *data, size_t len)
 {
   if (!_ack1Init)
   {
@@ -748,7 +766,7 @@ bool InputTaskHandler::ack1Command(uint8_t cmd, const uint8_t *data, size_t len)
   return success;
 }
 
-bool InputTaskHandler::ack1Response(uint8_t *data, size_t len)
+bool MusicMatrixTaskHandler::ack1Response(uint8_t *data, size_t len)
 {
   size_t recv = Wire.requestFrom(ACK1_ADDR, len);
   if (recv != len)
@@ -772,14 +790,14 @@ bool InputTaskHandler::ack1Response(uint8_t *data, size_t len)
   return true;
 }
 
-void InputTaskHandler::ack1Clear()
+void MusicMatrixTaskHandler::ack1Clear()
 {
   // one clear only stops scroll, second clear clears display (not sure why?)
   ack1Command(ACK1_LEDCLR_CMD);
   ack1Command(ACK1_LEDCLR_CMD);
 }
 
-void InputTaskHandler::ack1Tone(uint16_t freq)
+void MusicMatrixTaskHandler::ack1Tone(uint16_t freq)
 {
   if (freq == 0)
   {
@@ -795,12 +813,12 @@ void InputTaskHandler::ack1Tone(uint16_t freq)
   ack1Command(ACK1_TONEON_CMD, toneData, 2);
 }
 
-void InputTaskHandler::ack1Wake()
+void MusicMatrixTaskHandler::ack1Wake()
 {
   ack1Command(ACK1_LEDSCROLL_CMD, (uint8_t *)_ack1Message, strlen(_ack1Message));
 }
 
-void InputTaskHandler::alphaNumSetup()
+void MusicMatrixTaskHandler::alphaNumSetup()
 {
   if (_alphaNumInit)
   {
@@ -840,13 +858,13 @@ void InputTaskHandler::alphaNumSetup()
   log_i("AlphaNum initialized");
 }
 
-void InputTaskHandler::alphaNumClear()
+void MusicMatrixTaskHandler::alphaNumClear()
 {
   _alphaNum.clear();
   _alphaNum.writeDisplay();
 }
 
-void InputTaskHandler::alphaNumShiftIn(const char *str, size_t len)
+void MusicMatrixTaskHandler::alphaNumShiftIn(const char *str, size_t len)
 {
   if (!_alphaNumInit)
   {
@@ -876,7 +894,7 @@ void InputTaskHandler::alphaNumShiftIn(const char *str, size_t len)
   log_i("AlphaNum buffer: %c%c%c%c", _alphaNumBuffer[0], _alphaNumBuffer[1], _alphaNumBuffer[2], _alphaNumBuffer[3]);
 }
 
-void InputTaskHandler::neoKeySetup()
+void MusicMatrixTaskHandler::neoKeySetup()
 {
   if (_neoKeyInit)
   {
@@ -905,14 +923,14 @@ void InputTaskHandler::neoKeySetup()
 
   for (int i = 0; i < SS_NEOKEY_COUNT; i++)
   {
-    _neoKey.registerCallback(i, InputTaskHandler::neoKeyCallbackStatic);
+    _neoKey.registerCallback(i, MusicMatrixTaskHandler::neoKeyCallbackStatic);
   }
 
   log_i("NeoKey initialized");
   _neoKeyInit = true;
 }
 
-void InputTaskHandler::neoKeyRead()
+void MusicMatrixTaskHandler::neoKeyRead()
 {
   if (!_neoKeyInit)
   {
@@ -925,7 +943,7 @@ void InputTaskHandler::neoKeyRead()
   _neoKey.read();
 }
 
-void InputTaskHandler::neoKeyClear(bool show)
+void MusicMatrixTaskHandler::neoKeyClear(bool show)
 {
   for (int i = 0; i < SS_NEOKEY_COUNT; i++)
   {
@@ -938,12 +956,50 @@ void InputTaskHandler::neoKeyClear(bool show)
   }
 }
 
-NeoKey1x4Callback InputTaskHandler::neoKeyCallbackStatic(keyEvent evt)
+void MusicMatrixTaskHandler::neoKeyDisplay(char c)
 {
-  return inputTask.neoKeyCallback(evt);
+  GFXglyph *glyph = &(((GFXglyph *)pgm_read_ptr(&Font3x4.glyph))[c]);
+  uint8_t *bitmap = (uint8_t *)pgm_read_ptr(&Font3x4.bitmap);
+
+  uint16_t bo = pgm_read_word(&glyph->bitmapOffset);
+  uint8_t w = pgm_read_byte(&glyph->width);
+  uint8_t h = pgm_read_byte(&glyph->height);
+  int8_t xo = pgm_read_byte(&glyph->xOffset);
+  int8_t yo = pgm_read_byte(&glyph->yOffset);
+
+  uint8_t x, y, bits = 0, bit = 0;
+  uint32_t color = wheel(random(0, 255));
+
+  neoKeyClear(false);
+
+  for (y = 0; y < h; y++)
+  {
+    for (x = 0; x < w; x++)
+    {
+      if (!(bit++ & 7))
+      {
+        bits = pgm_read_byte(&bitmap[bo++]);
+      }
+      if (bits & 0x80)
+      {
+        int xp = xo + x;
+        int yp = yo + y;
+        int i = xp + yp * 4;
+        _neoKey.setPixelColor(i, color);
+      }
+      bits <<= 1;
+    }
+  }
+
+  _neoKey.show();
 }
 
-NeoKey1x4Callback InputTaskHandler::neoKeyCallback(keyEvent evt)
+NeoKey1x4Callback MusicMatrixTaskHandler::neoKeyCallbackStatic(keyEvent evt)
+{
+  return musicMatrix.neoKeyCallback(evt);
+}
+
+NeoKey1x4Callback MusicMatrixTaskHandler::neoKeyCallback(keyEvent evt)
 {
   if (evt.bit.EDGE == SEESAW_KEYPAD_EDGE_RISING)
   {
@@ -961,7 +1017,7 @@ NeoKey1x4Callback InputTaskHandler::neoKeyCallback(keyEvent evt)
   return 0; // without this callback loops indefinitely
 }
 
-void InputTaskHandler::neoSliderSetup()
+void MusicMatrixTaskHandler::neoSliderSetup()
 {
   if (_neoSliderInit)
   {
@@ -989,7 +1045,7 @@ void InputTaskHandler::neoSliderSetup()
   log_i("NeoSlider initialized");
 }
 
-void InputTaskHandler::neoSliderRead()
+void MusicMatrixTaskHandler::neoSliderRead()
 {
   if (!_neoSliderInit)
   {
@@ -1011,7 +1067,7 @@ void InputTaskHandler::neoSliderRead()
   }
 }
 
-void InputTaskHandler::neoSliderClear(bool show)
+void MusicMatrixTaskHandler::neoSliderClear(bool show)
 {
   for (int i = 0; i < SS_NEOSLIDER_LED_COUNT; i++)
   {
@@ -1024,7 +1080,7 @@ void InputTaskHandler::neoSliderClear(bool show)
   }
 }
 
-void InputTaskHandler::rotarySetup()
+void MusicMatrixTaskHandler::rotarySetup()
 {
   if (_rotaryInit)
   {
@@ -1060,7 +1116,7 @@ void InputTaskHandler::rotarySetup()
   log_i("Rotary initialized");
 }
 
-void InputTaskHandler::rotaryRead()
+void MusicMatrixTaskHandler::rotaryRead()
 {
   if (!_rotaryInit)
   {
@@ -1096,7 +1152,7 @@ void InputTaskHandler::rotaryRead()
   }
 }
 
-void InputTaskHandler::rotaryClear()
+void MusicMatrixTaskHandler::rotaryClear()
 {
   _rotaryNeoPixel.setPixelColor(0, 0x000000);
   _rotaryNeoPixel.show();
