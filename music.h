@@ -26,6 +26,7 @@
 #define TIMING_MASK 0x00FF
 #define N(note, octave, timing) ((octave << 12) | (note << 8) | timing)
 #define PAUSE(timing) N(SILENCE, SILENCE, timing)
+#define END N(SILENCE, SILENCE, 0)
 #define NO_TONE PAUSE(0)
 #define TIMING_UNIT_MS 60
 #define A4_FREQUENCY 440.0
@@ -56,9 +57,8 @@
 
 const char *Notes[] = {"C", "Cs", "D", "Ds", "E", "F", "Fs", "G", "Gs", "A", "As", "B"};
 
-
-const uint16_t TestTheme[] PROGMEM = {ALL_NOTES(6)};
-const uint16_t TestThemeLength = sizeof(TestTheme) / sizeof(TestTheme[0]);
+// const uint16_t TestTheme[] PROGMEM = {ALL_NOTES(6)};
+// const uint16_t TestThemeLength = sizeof(TestTheme) / sizeof(TestTheme[0]);
 
 const uint16_t TwinkleTwinkle[] PROGMEM = {
     N(Cn, 4, 10), N(Cn, 4, 10), N(Gn, 4, 10), N(Gn, 4, 10), N(An, 4, 10), N(An, 4, 10), N(Gn, 4, 20),
@@ -66,32 +66,108 @@ const uint16_t TwinkleTwinkle[] PROGMEM = {
     N(Gn, 4, 10), N(Gn, 4, 10), N(Fn, 4, 10), N(Fn, 4, 10), N(En, 4, 10), N(En, 4, 10), N(Dn, 4, 20),
     N(Gn, 4, 10), N(Gn, 4, 10), N(Fn, 4, 10), N(Fn, 4, 10), N(En, 4, 10), N(En, 4, 10), N(Dn, 4, 20),
     N(Cn, 4, 10), N(Cn, 4, 10), N(Gn, 4, 10), N(Gn, 4, 10), N(An, 4, 10), N(An, 4, 10), N(Gn, 4, 20),
-    N(Fn, 4, 10), N(Fn, 4, 10), N(En, 4, 10), N(En, 4, 10), N(Dn, 4, 10), N(Dn, 4, 10), N(Cn, 4, 20)};
-const uint16_t TwinkleTwinkleLength = sizeof(TwinkleTwinkle) / sizeof(TwinkleTwinkle[0]);
-
+    N(Fn, 4, 10), N(Fn, 4, 10), N(En, 4, 10), N(En, 4, 10), N(Dn, 4, 10), N(Dn, 4, 10), N(Cn, 4, 20), END};
 const uint16_t MaryHadALittleLamb[] PROGMEM = {
     N(En, 4, 10), N(Dn, 4, 10), N(Cn, 4, 10), N(Dn, 4, 10), N(En, 4, 10), N(En, 4, 10), N(En, 4, 20),
     N(Dn, 4, 10), N(Dn, 4, 10), N(Dn, 4, 20),
     N(En, 4, 10), N(Gn, 4, 10), N(Gn, 4, 20),
     N(En, 4, 10), N(Dn, 4, 10), N(Cn, 4, 10), N(Dn, 4, 10), N(En, 4, 10), N(En, 4, 10), N(En, 4, 10),
     N(Dn, 4, 10), N(Dn, 4, 10), N(En, 4, 10), N(Dn, 4, 10), N(Cn, 4, 10), N(Dn, 4, 10), N(En, 4, 20),
-    N(Dn, 4, 10), N(Dn, 4, 10), N(En, 4, 10), N(Dn, 4, 10), N(Cn, 4, 10), N(Dn, 4, 10), N(En, 4, 20)};
-const uint16_t MaryHadALittleLambLength = sizeof(MaryHadALittleLamb) / sizeof(MaryHadALittleLamb[0]);
+    N(Dn, 4, 10), N(Dn, 4, 10), N(En, 4, 10), N(Dn, 4, 10), N(Cn, 4, 10), N(Dn, 4, 10), N(En, 4, 20), END};
+const uint16_t MerryXmas[] PROGMEM = {
+    N(Dn, 6, 16),
+    N(Gn, 6, 16), N(Gn, 6, 8), N(An, 6, 8), N(Gn, 6, 8), N(Fs, 6, 8),
+    N(En, 6, 16), N(En, 6, 16), N(En, 6, 16),
+    N(An, 6, 16), N(An, 6, 8), N(Bn, 6, 8), N(An, 6, 8), N(Gn, 6, 8),
+    N(Fs, 6, 16), N(Dn, 6, 16), N(Dn, 6, 16),
+    N(Bn, 6, 16), N(Bn, 6, 8), N(Cn, 7, 8), N(Bn, 6, 8), N(An, 6, 8),
+    N(Gn, 6, 16), N(En, 6, 16), N(En, 6, 8), N(En, 6, 8),
+    N(En, 6, 16), N(An, 6, 16), N(Fs, 6, 16),
+    N(Gn, 6, 32),
 
+    N(Dn, 6, 16),
+    N(Gn, 6, 16), N(Gn, 6, 16), N(Gn, 6, 16),
+    N(Fs, 6, 32), N(Fs, 6, 16),
+    N(Gn, 6, 16), N(Fs, 6, 16), N(En, 6, 16),
+    N(Dn, 6, 32), N(Bn, 6, 16),
+    N(Cn, 7, 16), N(Bn, 6, 16), N(An, 6, 16),
+    N(Dn, 7, 16), N(Dn, 6, 16), N(Dn, 6, 8), N(Dn, 6, 8),
+    N(En, 6, 16), N(An, 6, 16), N(Fs, 6, 16),
+    N(Gn, 6, 32), PAUSE(16),
+    0};
+const uint16_t JollyGoodFellow[] PROGMEM = {
+    N(Dn, 7, 8),
+    N(Bn, 6, 16), N(Bn, 6, 8), N(Bn, 6, 8), N(An, 6, 8), N(Bn, 6, 8),
+    N(Cn, 7, 24), N(Bn, 6, 16), N(Bn, 6, 8),
+    N(An, 6, 16), N(An, 6, 8), N(An, 6, 8), N(Gn, 6, 8), N(An, 6, 8),
+    N(Bn, 6, 24), N(Gn, 6, 16), N(An, 6, 8),
+    N(Bn, 6, 16), N(Bn, 6, 8), N(Bn, 6, 8), N(An, 6, 8), N(Bn, 6, 8),
+    N(Cn, 7, 24), N(En, 7, 16), N(En, 7, 8),
+    N(Dn, 7, 8), N(En, 7, 8), N(Dn, 7, 8), N(Cn, 7, 8), N(Bn, 6, 8), N(An, 6, 8),
+    N(Gn, 6, 24), N(Gn, 6, 16), N(Bn, 6, 8),
+    N(Dn, 7, 8), N(Dn, 7, 8), N(Dn, 7, 8), N(En, 7, 16), N(En, 7, 8),
+
+    N(Dn, 7, 24), N(Dn, 7, 16), N(Dn, 7, 8),
+    N(Bn, 6, 8), N(Bn, 6, 8), N(Bn, 6, 8), N(Cn, 7, 16), N(Cn, 7, 8),
+    N(Bn, 6, 24), N(Bn, 6, 8), N(Gn, 6, 8), N(An, 6, 8),
+    N(Bn, 6, 16), N(Bn, 6, 8), N(Bn, 6, 8), N(An, 6, 8), N(Bn, 6, 8),
+    N(Cn, 7, 24), N(Bn, 6, 16), N(Bn, 6, 8),
+    N(An, 6, 16), N(An, 6, 8), N(An, 6, 8), N(Gn, 6, 8), N(An, 6, 8),
+    N(Bn, 6, 24), N(Gn, 6, 16), N(An, 6, 8),
+    N(Bn, 6, 16), N(Bn, 6, 8), N(Bn, 6, 8), N(An, 6, 8), N(Bn, 6, 8),
+    N(Cn, 7, 16), N(Dn, 7, 8), N(En, 7, 16), N(En, 7, 8),
+    N(Dn, 7, 8), N(En, 7, 8), N(Dn, 7, 8), N(Cn, 7, 16), N(An, 6, 8),
+    N(Gn, 6, 24), N(Gn, 6, 16), PAUSE(8),
+    PAUSE(48),
+    0};
+const uint16_t Reveille[] PROGMEM = {
+    N(Gn, 6, 4),
+    N(Cn, 7, 8), N(En, 7, 4), N(Cn, 7, 4), N(Gn, 6, 8), N(En, 7, 8),
+    N(Cn, 7, 8), N(En, 7, 4), N(Cn, 7, 4), N(Gn, 6, 8), N(En, 7, 8),
+    N(Cn, 7, 8), N(En, 7, 4), N(Cn, 7, 4), N(Gn, 6, 8), N(Cn, 7, 8),
+    N(En, 7, 16), N(Cn, 7, 8), N(Gn, 6, 8),
+    N(Cn, 7, 8), N(En, 7, 4), N(Cn, 7, 4), N(Gn, 6, 8), N(En, 7, 8),
+    N(Cn, 7, 8), N(En, 7, 4), N(Cn, 7, 4), N(Gn, 6, 8), N(En, 7, 8),
+    N(Cn, 7, 8), N(En, 7, 4), N(Cn, 7, 4), N(Gn, 6, 8), N(Gn, 6, 8),
+    N(Cn, 7, 24), PAUSE(8),
+    N(En, 7, 8),
+    N(En, 7, 8), N(En, 7, 8), N(En, 7, 8), N(En, 7, 8),
+    N(Gn, 7, 16), N(En, 7, 8), N(Cn, 7, 8),
+    N(En, 7, 8), N(Cn, 7, 8), N(En, 7, 8), N(Cn, 7, 8),
+    N(En, 7, 16), N(Cn, 7, 8), N(En, 7, 8),
+    N(En, 7, 8), N(En, 7, 8), N(En, 7, 8), N(En, 7, 8),
+    N(Gn, 7, 16), N(En, 7, 8), N(Cn, 7, 8),
+    N(En, 7, 8), N(Cn, 7, 8), N(Gn, 6, 8), N(Gn, 6, 8),
+    N(Cn, 7, 24), PAUSE(8),
+    0};
+const uint16_t BigBen[] PROGMEM = {
+    N(Bn, 5, 32), N(Gn, 5, 32), N(An, 5, 32), N(Dn, 5, 32),
+    N(Gn, 5, 32), N(An, 5, 32), N(Bn, 5, 32), N(Gn, 5, 32),
+    N(Bn, 5, 32), N(An, 5, 32), N(Gn, 5, 32), N(Dn, 5, 32),
+    N(Dn, 5, 32), N(An, 5, 32), N(Bn, 5, 32), N(Gn, 5, 32),
+    N(Gn, 5, 32), N(Gn, 5, 32), N(Gn, 5, 32), N(Gn, 5, 32),
+    PAUSE(32),
+    0};
 const uint16_t T2Theme[] PROGMEM = {
-    N(Dn, 6, 20), N(Dn, 6, 20), PAUSE(10), N(Dn, 6, 20), PAUSE(10), N(Dn, 6, 20), N(Dn, 6, 20), PAUSE(20),
-    N(Dn, 6, 20), N(Dn, 6, 20), PAUSE(10), N(Dn, 6, 20), PAUSE(10), N(Dn, 6, 20), N(Dn, 6, 20), PAUSE(20),
-    //N(Dn, 6, 20), N(Dn, 6, 20), PAUSE(10), N(Dn, 6, 20), PAUSE(10), N(Dn, 6, 20), N(Dn, 6, 20), PAUSE(20),
-    //N(Dn, 6, 20), N(Dn, 6, 20), PAUSE(10), N(Dn, 6, 20), PAUSE(10), N(Dn, 6, 20), N(Dn, 6, 20), PAUSE(20),
+    N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(20),
+    N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(20),
+    N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(20),
+    N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(20),
+
     N(Dn, 6, 9), N(En, 6, 9), N(Fn, 6, 60), N(En, 6, 15), N(Cn, 6, 9), N(Fn, 5, 60),
     N(Dn, 6, 9), N(En, 6, 9), N(Fn, 6, 60), N(En, 6, 15), N(Cn, 6, 9), N(An, 6, 60), N(Gn, 6, 60),
     N(Dn, 6, 9), N(En, 6, 9), N(Fn, 6, 60), N(En, 6, 15), N(Cn, 6, 9), N(Gn, 5, 60),
-    N(Fn, 5, 60), N(Dn, 5, 9), N(Fn, 5, 60), N(En, 5, 60)};
-const uint16_t T2ThemeLength = sizeof(T2Theme) / sizeof(T2Theme[0]);
+    N(Fn, 5, 60), N(Dn, 5, 9), N(Fn, 5, 60), N(En, 5, 60), END};
 
-const uint16_t(*MusicThemes[]) PROGMEM = {TestTheme, TwinkleTwinkle, MaryHadALittleLamb, T2Theme};
-const size_t MusicThemeLengths[] = {TestThemeLength, TwinkleTwinkleLength, MaryHadALittleLambLength, T2ThemeLength};
-const size_t MusicThemeCount = sizeof(MusicThemes) / sizeof(MusicThemes[0]);
+const uint16_t(*Songs[]) PROGMEM = {
+    TwinkleTwinkle,
+    MaryHadALittleLamb,
+    MerryXmas,
+    JollyGoodFellow,
+    Reveille,
+    BigBen,
+    T2Theme};
+const size_t SongCount = sizeof(Songs) / sizeof(Songs[0]);
 
 int getNoteFrequency(int note, int octave)
 {
@@ -107,18 +183,17 @@ int getNoteFrequency(int note, int octave)
     return frequency;
 }
 
-using PlayToneCallback = std::function<void(uint16_t)>;
-void playMusic(const uint16_t *music, size_t len, PlayToneCallback playTone)
+using PlayNoteCallback = std::function<void(uint8_t, uint8_t, uint8_t)>;
+void playMusic(const uint16_t *music, PlayNoteCallback playNote)
 {
-    for (int i = 0; i < len; i++)
+    int noteIndex = 0;
+    uint16_t note;
+    while ((note = music[noteIndex++]) != END)
     {
-        uint16_t note = music[i];
         uint8_t octave = (note & OCTAVE_MASK) >> 12;
-        uint8_t name = (note & NOTE_MASK) >> 8;
+        uint8_t index = (note & NOTE_MASK) >> 8;
         uint8_t timing = note & TIMING_MASK;
 
-        playTone(note);
-        delay((uint32_t)timing * TIMING_UNIT_MS);
-        playTone(NO_TONE);
+        playNote(index, octave, timing);
     }
 }

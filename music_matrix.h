@@ -48,31 +48,40 @@
 #define DELAY_MS 10
 #define BASE_DELAY 40
 
+using namespace std;
+
 // I hate this
 class MusicMatrixTaskHandler;
 extern MusicMatrixTaskHandler musicMatrix;
 
-const std::tuple<uint8_t, uint16_t> AlphaNumLoopPath[] = {
+const tuple<uint8_t, uint16_t> AlphaNumLoopPath[] = {
     {0, ALPHANUM_SEG_A}, {1, ALPHANUM_SEG_A}, {2, ALPHANUM_SEG_A}, {3, ALPHANUM_SEG_A}, {3, ALPHANUM_SEG_B}, {3, ALPHANUM_SEG_C}, {3, ALPHANUM_SEG_D}, {2, ALPHANUM_SEG_D}, {1, ALPHANUM_SEG_D}, {0, ALPHANUM_SEG_D}, {0, ALPHANUM_SEG_E}, {0, ALPHANUM_SEG_F}};
 const int AlphaNumLoopPathLength = sizeof(AlphaNumLoopPath) / sizeof(AlphaNumLoopPath[0]);
 
-const std::tuple<uint8_t, uint16_t> AlphaNumFigure8Path[] = {
-    {0, ALPHANUM_SEG_A}, {1, ALPHANUM_SEG_H}, {1, ALPHANUM_SEG_N}, {2, ALPHANUM_SEG_D}, {3, ALPHANUM_SEG_D}, {3, ALPHANUM_SEG_C}, {3, ALPHANUM_SEG_B}, {3, ALPHANUM_SEG_A}, {2, ALPHANUM_SEG_G2}, {2, ALPHANUM_SEG_K}, {1, ALPHANUM_SEG_L}, {0, ALPHANUM_SEG_D}, {0, ALPHANUM_SEG_E}, {0, ALPHANUM_SEG_F}};
+const tuple<uint8_t, uint16_t> AlphaNumFigure8Path[] = {
+    {0, ALPHANUM_SEG_A}, {1, ALPHANUM_SEG_H}, {1, ALPHANUM_SEG_N}, {2, ALPHANUM_SEG_D}, {3, ALPHANUM_SEG_D}, {3, ALPHANUM_SEG_C}, {3, ALPHANUM_SEG_B}, {3, ALPHANUM_SEG_A}, {2, ALPHANUM_SEG_K}, {2, ALPHANUM_SEG_L}, {1, ALPHANUM_SEG_D}, {0, ALPHANUM_SEG_D}, {0, ALPHANUM_SEG_E}, {0, ALPHANUM_SEG_F}};
 const int AlphaNumFigure8PathLength = sizeof(AlphaNumFigure8Path) / sizeof(AlphaNumFigure8Path[0]);
 
-const std::tuple<uint8_t, uint16_t> AlphaNumWavyPath[] = {
-    {0, ALPHANUM_SEG_A}, {1, ALPHANUM_SEG_H}, {1, ALPHANUM_SEG_N}, {2, ALPHANUM_SEG_L}, {2, ALPHANUM_SEG_K}, {3, ALPHANUM_SEG_A}, {3, ALPHANUM_SEG_B}, {3, ALPHANUM_SEG_C}, {3, ALPHANUM_SEG_D}, {2, ALPHANUM_SEG_N}, {2, ALPHANUM_SEG_H}, {1, ALPHANUM_SEG_K}, {1, ALPHANUM_SEG_L}, {0, ALPHANUM_SEG_D}, {0, ALPHANUM_SEG_E}, {0, ALPHANUM_SEG_F}};
+const tuple<uint8_t, uint16_t> AlphaNumWavyPath[] = {
+    {0, ALPHANUM_SEG_A}, {1, ALPHANUM_SEG_H}, {1, ALPHANUM_SEG_N}, {2, ALPHANUM_SEG_L}, {2, ALPHANUM_SEG_K}, {3, ALPHANUM_SEG_A}, {3, ALPHANUM_SEG_B}, {3, ALPHANUM_SEG_C}, {3, ALPHANUM_SEG_D},
+    {2, ALPHANUM_SEG_N}, {2, ALPHANUM_SEG_H}, {1, ALPHANUM_SEG_K}, {1, ALPHANUM_SEG_L}, {0, ALPHANUM_SEG_D}, {0, ALPHANUM_SEG_E}, {0, ALPHANUM_SEG_F}};
 const int AlphaNumWavyPathLength = sizeof(AlphaNumWavyPath) / sizeof(AlphaNumWavyPath[0]);
 
-const std::tuple<uint8_t, uint16_t> AlphaNumZLoopPath[] = {
-    {0, ALPHANUM_SEG_A}, {1, ALPHANUM_SEG_A}, {2, ALPHANUM_SEG_A}, {3, ALPHANUM_SEG_A}, {3, ALPHANUM_SEG_B}, {3, ALPHANUM_SEG_G2}, {3, ALPHANUM_SEG_G1}, {2, ALPHANUM_SEG_G2}, {2, ALPHANUM_SEG_G1}, {1, ALPHANUM_SEG_G2}, {1, ALPHANUM_SEG_G1}, {0, ALPHANUM_SEG_G2}, {0, ALPHANUM_SEG_G1}, {0, ALPHANUM_SEG_E}, {0, ALPHANUM_SEG_D}, {1, ALPHANUM_SEG_D}, {2, ALPHANUM_SEG_D}, {3, ALPHANUM_SEG_D}, {3, ALPHANUM_SEG_C}, {3, ALPHANUM_SEG_G2}, {3, ALPHANUM_SEG_G1}, {2, ALPHANUM_SEG_G2}, {2, ALPHANUM_SEG_G1}, {1, ALPHANUM_SEG_G2}, {1, ALPHANUM_SEG_G1}, {0, ALPHANUM_SEG_G2}, {0, ALPHANUM_SEG_G1}, {0, ALPHANUM_SEG_F}};
+const tuple<uint8_t, uint16_t> AlphaNumZLoopPath[] = {
+    {0, ALPHANUM_SEG_A}, {1, ALPHANUM_SEG_A}, {2, ALPHANUM_SEG_A}, {3, ALPHANUM_SEG_A}, {3, ALPHANUM_SEG_B}, {3, ALPHANUM_SEG_G2}, {3, ALPHANUM_SEG_G1}, {2, ALPHANUM_SEG_G2}, {2, ALPHANUM_SEG_G1},
+    {1, ALPHANUM_SEG_G2}, {1, ALPHANUM_SEG_G1}, {0, ALPHANUM_SEG_G2}, {0, ALPHANUM_SEG_G1}, {0, ALPHANUM_SEG_E}, {0, ALPHANUM_SEG_D}, {1, ALPHANUM_SEG_D}, {2, ALPHANUM_SEG_D}, {3, ALPHANUM_SEG_D},
+    {3, ALPHANUM_SEG_C}, {3, ALPHANUM_SEG_G2}, {3, ALPHANUM_SEG_G1}, {2, ALPHANUM_SEG_G2}, {2, ALPHANUM_SEG_G1}, {1, ALPHANUM_SEG_G2}, {1, ALPHANUM_SEG_G1}, {0, ALPHANUM_SEG_G2}, {0, ALPHANUM_SEG_G1}, {0, ALPHANUM_SEG_F}};
 const int AlphaNumZLoopPathLength = sizeof(AlphaNumZLoopPath) / sizeof(AlphaNumZLoopPath[0]);
 
-const std::tuple<uint8_t, uint16_t> *AlphaNumPaths[] = {AlphaNumLoopPath, AlphaNumFigure8Path, AlphaNumWavyPath, AlphaNumZLoopPath};
+const tuple<uint8_t, uint16_t> *AlphaNumPaths[] = {AlphaNumLoopPath, AlphaNumFigure8Path, AlphaNumWavyPath, AlphaNumZLoopPath};
 int AlphaNumPathLengths[] = {AlphaNumLoopPathLength, AlphaNumFigure8PathLength, AlphaNumWavyPathLength, AlphaNumZLoopPathLength};
 int AlphaNumPathCount = sizeof(AlphaNumPaths) / sizeof(AlphaNumPaths[0]);
 const char *Ack1BootMessage = "Hello world!";
 const char *Ack1Message = "Dad loves Stella and Beau!";
+
+uint32_t RED = 0xFF0000;
+uint32_t GREEN = 0x00FF00;
+uint32_t BLUE = 0x0000FF;
 
 class MusicMatrixTaskHandler : public DisplayTaskHandler
 {
@@ -85,6 +94,13 @@ private:
     Blinky,
   };
   const int ModeCount = 4;
+
+  const int DefaultTimingUnitMs = 60;
+  const int TimingUnitDeltaMax = 50;
+  const int TimingUnitIncrementMs = 5;
+  TaskHandle_t _bgTask = NULL;
+  int _octaveAdjust;
+  int _timingUnitMs;
 
   Mode _mode = Mode::MusicFreeplay;
   unsigned long _lastInput = 0;
@@ -130,6 +146,7 @@ private:
   bool _rotaryJustPressed = false;
   bool _rotaryJustRotated = false;
   int32_t _rotaryEncPos;
+  int32_t _rotaryLastEncPos;
   uint8_t _rotaryWheelPos;
   bool _rotaryIsPressed = false;
   unsigned long _rotaryLastPressMillis = 0;
@@ -146,6 +163,7 @@ public:
 private:
   void task(void *parameters) override;
   void update();
+  uint32_t wheel(uint8_t wheelPos);
 
   void updateMusicFreeplay();
   void updateMusicPlay();
@@ -153,8 +171,9 @@ private:
   void updateBlinky();
   void changeMode(int mode = -1);
 
+  static void playMusicTask(void *parameters);
+  void playNote(uint8_t noteIndex, uint8_t octave, uint8_t timing);
   void showMusicMenu();
-  uint32_t wheel(uint8_t wheelPos);
 
   void ack1Setup();
   bool ack1Command(uint8_t cmd, const uint8_t *data = NULL, size_t len = 0);
@@ -258,9 +277,6 @@ void MusicMatrixTaskHandler::update()
   if (_rotaryJustPressed)
   {
     changeMode();
-    ack1Tone(1000);
-    delay(100);
-    ack1Tone(0);
   }
 
   // rotary encoder changes color
@@ -287,6 +303,22 @@ void MusicMatrixTaskHandler::update()
   {
     updateBlinky();
   }
+}
+
+uint32_t MusicMatrixTaskHandler::wheel(uint8_t wheelPos)
+{
+  wheelPos = 255 - wheelPos;
+  if (wheelPos < 85)
+  {
+    return seesaw_NeoPixel::Color(255 - wheelPos * 3, 0, wheelPos * 3);
+  }
+  if (wheelPos < 170)
+  {
+    wheelPos -= 85;
+    return seesaw_NeoPixel::Color(0, wheelPos * 3, 255 - wheelPos * 3);
+  }
+  wheelPos -= 170;
+  return seesaw_NeoPixel::Color(wheelPos * 3, 255 - wheelPos * 3, 0);
 }
 
 void MusicMatrixTaskHandler::updateMusicFreeplay()
@@ -345,74 +377,92 @@ void MusicMatrixTaskHandler::updateMusicFreeplay()
 
 void MusicMatrixTaskHandler::updateMusicPlay()
 {
-  // pressing neokey starts playing song
-  if (_neoKeyJustPressedIndex >= 0)
+  if (_rotaryJustRotated)
   {
-    const uint16_t *music;
-    size_t musicLen;
+    int msIncrement = _rotaryEncPos > _rotaryLastEncPos ? TimingUnitIncrementMs : -TimingUnitIncrementMs;
+    int newTimingUnitMs = constrain(_timingUnitMs + msIncrement, DefaultTimingUnitMs - TimingUnitDeltaMax, DefaultTimingUnitMs + TimingUnitDeltaMax);
 
-    if (_neoKeyJustPressedIndex < MusicThemeCount)
+    if (newTimingUnitMs != _timingUnitMs)
     {
-      log_i("Playing music");
+      _timingUnitMs = newTimingUnitMs;
+      log_i("Timing unit updated: %d", _timingUnitMs);
 
-      playMusic(
-          MusicThemes[_neoKeyJustPressedIndex],
-          MusicThemeLengths[_neoKeyJustPressedIndex],
-          [this](uint16_t note)
-          {
-            neoKeyClear(false);
-            neoSliderClear(false);
+      uint8_t value = map(_timingUnitMs, DefaultTimingUnitMs - TimingUnitDeltaMax, DefaultTimingUnitMs + TimingUnitDeltaMax, 0x00, 0xFF);
+      uint32_t color = (0xFF - value) << 16 | value;
+      _rotaryNeoPixel.setPixelColor(0, color);
+      _rotaryNeoPixel.show();
 
-            uint8_t octave = (note & OCTAVE_MASK) >> 12;
-            uint8_t noteIndex = (note & NOTE_MASK) >> 8;
-            uint8_t timing = note & TIMING_MASK;
-            int freq = getNoteFrequency(noteIndex, octave);
+      if (_bgTask == NULL)
+      {
+        char timingUnitStr[5];
+        snprintf(timingUnitStr, 5, "%04d", _timingUnitMs);
+        alphaNumShiftIn(timingUnitStr);
+      }
+    }
+  }
 
-            if (freq == 0)
-            {
-              ack1Tone(0);
-              _neoKey.show();
-              _neoSliderPixels.show();
-              return;
-            }
+  if (_neoSliderJustChanged)
+  {
+    int newOctaveAdjust = map(_neoSliderReading, 0, 1023, -2, 2);
 
-            ack1Tone(freq);
+    if (newOctaveAdjust != _octaveAdjust)
+    {
+      _octaveAdjust = newOctaveAdjust;
+      log_i("Octave adjust updated: %d", _octaveAdjust);
 
-            // show note on key
-            uint32_t color = wheel(map(noteIndex, 0, SS_NEOKEY_COUNT, 0, 255));
-            _neoKey.setPixelColor(noteIndex, color);
-            _neoKey.show();
+      if (_bgTask == NULL)
+      {
+        char timingUnitStr[5];
+        snprintf(timingUnitStr, 5, "%04d", _octaveAdjust);
+        alphaNumShiftIn(timingUnitStr);
+      }
+    }
+  }
 
-            // show octave on slider
-            if (octave % 2 == 0)
-            {
-              color = color & 0x7F7F7F;
-            }
-            _neoSliderPixels.setPixelColor(4 - octave / 2, color); // slider is oriented inverted
-            _neoSliderPixels.show();
+  if (_bgTask == NULL)
+  {
+    // pressing neokey start playing song or error tone
+    if (_neoKeyJustPressedIndex >= 0)
+    {
+      if (_neoKeyJustPressedIndex < SongCount)
+      {
+        log_i("Starting music");
+        alphaNumClear();
+        neoKeyClear();
 
-            // show note on alphanum
-            const char *noteName = Notes[noteIndex];
-            alphaNumShiftIn(noteName);
-          });
+        // tuple<MusicMatrixTaskHandler *, const uint16_t *> taskParams = make_tuple(this, Songs[_neoKeyJustPressedIndex]);
+        // xTaskCreatePinnedToCore(MusicMatrixTaskHandler::playMusicTask, "MusicTask", 4096 * 4, &taskParams, 1, &_bgTask, 1);
 
+        // synchronous play
+        const uint16_t *song = Songs[_neoKeyJustPressedIndex];
+        playMusic(song, [this](uint8_t noteIndex, uint8_t octave, uint8_t timing)
+                  { playNote(noteIndex, octave, timing); });
+        showMusicMenu();
+      }
+      else
+      {
+        ack1Tone(1000);
+        delay(100);
+        ack1Tone(0);
+        delay(100);
+        ack1Tone(1000);
+        delay(100);
+        ack1Tone(0);
+      }
+    }
+  }
+  else
+  {
+    // pressing any neokey stops playing song
+    if (_neoKeyJustPressedIndex >= 0 || xTaskGetSchedulerState() == taskSCHEDULER_SUSPENDED)
+    {
       log_i("Music complete");
+      vTaskDelete(_bgTask);
+      _bgTask = NULL;
+      _lastInput = millis(); // don't go to blinky mode right after long song
+
+      showMusicMenu();
     }
-    else
-    {
-      // error tone
-      ack1Tone(1000);
-      delay(100);
-      ack1Tone(0);
-
-      delay(100);
-
-      ack1Tone(1000);
-      delay(100);
-      ack1Tone(0);
-    }
-
-    showMusicMenu();
   }
 }
 
@@ -529,7 +579,7 @@ void MusicMatrixTaskHandler::updateBlinky()
 
 void MusicMatrixTaskHandler::changeMode(int desiredMode)
 {
-  const int ModeChangeDelay = 1000;
+  const int ModeChangeDelay = 300;
 
   if (!_ack1Init || !_neoKeyInit || !_neoSliderInit || !_rotaryInit)
   {
@@ -537,7 +587,24 @@ void MusicMatrixTaskHandler::changeMode(int desiredMode)
     return;
   }
 
-  _mode = (Mode)(desiredMode > 0 ? desiredMode % ModeCount : (_mode + 1) % ModeCount);
+  if (_bgTask != NULL)
+  {
+    log_w("Deleting background task still running");
+    vTaskDelete(_bgTask);
+    _bgTask = NULL;
+  }
+
+  if (desiredMode >= 0)
+  {
+    _mode = (Mode)(desiredMode % ModeCount);
+  }
+  else
+  {
+    _mode = (Mode)((_mode + 1) % ModeCount);
+    ack1Tone(800);
+    delay(100);
+    ack1Tone(0);
+  }
 
   if (_mode == MusicFreeplay)
   {
@@ -563,6 +630,7 @@ void MusicMatrixTaskHandler::changeMode(int desiredMode)
     neoSliderClear();
     rotaryClear();
 
+    _timingUnitMs = DefaultTimingUnitMs;
     showMusicMenu();
   }
   else if (_mode == Lights)
@@ -631,32 +699,74 @@ void MusicMatrixTaskHandler::changeMode(int desiredMode)
     _rotaryNeoPixel.setPixelColor(0, wheel(_rotaryWheelPos + random(0, 32)));
     _rotaryNeoPixel.show();
   }
+
+  if (desiredMode < 0)
+  {
+    ack1Tone(1000 + _mode * 100);
+    delay(100);
+    ack1Tone(0);
+  }
+}
+
+void MusicMatrixTaskHandler::playMusicTask(void *parameters)
+{
+  tuple<MusicMatrixTaskHandler *, const uint16_t *> *taskParams = (tuple<MusicMatrixTaskHandler *, const uint16_t *> *)parameters;
+  MusicMatrixTaskHandler *taskHandler = get<0>(*taskParams);
+  const uint16_t *song = get<1>(*taskParams);
+
+  playMusic(song, [taskHandler](uint8_t noteIndex, uint8_t octave, uint8_t timing)
+            { taskHandler->playNote(noteIndex, octave, timing); });
+}
+
+void MusicMatrixTaskHandler::playNote(uint8_t noteIndex, uint8_t octave, uint8_t timing)
+{
+  neoKeyClear(false);
+  neoSliderClear(false);
+
+  // TODO: smaller increments than whole octave
+  uint32_t noteColor = wheel(map(noteIndex, 0, SS_NEOKEY_COUNT, 0, 255));
+  uint32_t octaveColor = octave % 2 == 0 ? BLUE : RED; // show in 4 steps on slider, low octave is blue, high is red
+
+  int frequency = getNoteFrequency(noteIndex, octave + _octaveAdjust);
+
+  ack1Tone(frequency);
+
+  // show note on neokey
+  _neoKey.setPixelColor(noteIndex, noteColor);
+  _neoKey.show();
+
+  // show octave on neoslider
+  int sliderIndex = 4 - octave / 2; // slider is oriented inverted
+  _neoSliderPixels.setPixelColor(sliderIndex, octaveColor);
+  _neoSliderPixels.show();
+
+  // show note on alphanum
+  const char *noteName = Notes[noteIndex];
+  alphaNumShiftIn(noteName);
+
+  // wait
+  delay(timing * _timingUnitMs);
+
+  ack1Tone(0);
+
+  // off
+  _neoKey.setPixelColor(noteIndex, 0);
+  _neoKey.show();
+  _neoSliderPixels.setPixelColor(sliderIndex, 0);
+  _neoSliderPixels.show();
+
+  // timing between notes (half unit of time)
+  delay(_timingUnitMs >> 1);
 }
 
 void MusicMatrixTaskHandler::showMusicMenu()
 {
   for (int i = 0; i < SS_NEOKEY_COUNT; i++)
   {
-    uint32_t color = (i < MusicThemeCount) ? wheel(map(i, 0, MusicThemeCount, 0, 255)) : 0;
+    uint32_t color = (i < SongCount) ? wheel(map(i, 0, SongCount, 0, 255)) : 0;
     _neoKey.setPixelColor(i, color);
   }
   _neoKey.show();
-}
-
-uint32_t MusicMatrixTaskHandler::wheel(uint8_t wheelPos)
-{
-  wheelPos = 255 - wheelPos;
-  if (wheelPos < 85)
-  {
-    return seesaw_NeoPixel::Color(255 - wheelPos * 3, 0, wheelPos * 3);
-  }
-  if (wheelPos < 170)
-  {
-    wheelPos -= 85;
-    return seesaw_NeoPixel::Color(0, wheelPos * 3, 255 - wheelPos * 3);
-  }
-  wheelPos -= 170;
-  return seesaw_NeoPixel::Color(wheelPos * 3, 255 - wheelPos * 3, 0);
 }
 
 void MusicMatrixTaskHandler::ack1Setup()
@@ -1156,6 +1266,7 @@ void MusicMatrixTaskHandler::rotaryRead()
   if (_rotaryEncPos != newEncPos)
   {
     log_d("Rotary encoder pos: %d", newEncPos);
+    _rotaryLastEncPos = _rotaryEncPos;
     _rotaryEncPos = newEncPos;
     _rotaryJustRotated = true;
     _lastInput = millis();
