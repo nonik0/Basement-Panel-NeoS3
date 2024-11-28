@@ -94,8 +94,10 @@ private:
   const int ModeCount = 4;
 
   const int DefaultTimingUnitMs = 60;
-  const int TimingUnitDeltaMax = 50;
-  const int TimingUnitIncrementMs = 5;
+  const int TimingUnitMinMs = 5;
+  const int TimingUnitMaxMs = 200;
+  const int TimingUnitStepMs = 5;
+
   TaskHandle_t _bgTask = NULL;
   int _octaveAdjust;
   int _timingUnitMs;
@@ -377,15 +379,15 @@ void MusicMatrixTaskHandler::updateMusicPlay()
 {
   if (_rotaryJustRotated)
   {
-    int msIncrement = _rotaryEncPos < _rotaryLastEncPos ? TimingUnitIncrementMs : -TimingUnitIncrementMs;
-    int newTimingUnitMs = constrain(_timingUnitMs + msIncrement, DefaultTimingUnitMs - TimingUnitDeltaMax, DefaultTimingUnitMs + TimingUnitDeltaMax);
+    int msIncrement = _rotaryEncPos < _rotaryLastEncPos ? TimingUnitStepMs : -TimingUnitStepMs;
+    int newTimingUnitMs = constrain(_timingUnitMs + msIncrement, TimingUnitMinMs, TimingUnitMaxMs);
 
     if (newTimingUnitMs != _timingUnitMs)
     {
       _timingUnitMs = newTimingUnitMs;
       log_i("Timing unit updated: %d", _timingUnitMs);
 
-      uint8_t value = map(_timingUnitMs, DefaultTimingUnitMs - TimingUnitDeltaMax, DefaultTimingUnitMs + TimingUnitDeltaMax, 0x00, 0xFF);
+      uint8_t value = map(_timingUnitMs, TimingUnitMinMs, TimingUnitMaxMs, 0x00, 0xFF);
       uint32_t color = (0xFF - value) << 16 | value;
       _rotaryNeoPixel.setPixelColor(0, color);
       _rotaryNeoPixel.show();
@@ -428,14 +430,14 @@ void MusicMatrixTaskHandler::updateMusicPlay()
         alphaNumClear();
         neoKeyClear();
 
-        // tuple<MusicMatrixTaskHandler *, const uint16_t *> taskParams = make_tuple(this, Songs[_neoKeyJustPressedIndex]);
-        // xTaskCreatePinnedToCore(MusicMatrixTaskHandler::playMusicTask, "MusicTask", 4096 * 4, &taskParams, 1, &_bgTask, 1);
+        tuple<MusicMatrixTaskHandler *, const uint16_t *> taskParams = make_tuple(this, Songs[_neoKeyJustPressedIndex]);
+        xTaskCreatePinnedToCore(MusicMatrixTaskHandler::playMusicTask, "MusicTask", 4096 * 4, &taskParams, 1, &_bgTask, 1);
 
         // synchronous play
-        const uint16_t *song = Songs[_neoKeyJustPressedIndex];
-        playMusic(song, [this](uint8_t noteIndex, uint8_t octave, uint8_t timing)
-                  { playNote(noteIndex, octave, timing); });
-        showMusicMenu();
+        // const uint16_t *song = Songs[_neoKeyJustPressedIndex];
+        // playMusic(song, [this](uint8_t noteIndex, uint8_t octave, uint8_t timing)
+        //           { playNote(noteIndex, octave, timing); });
+        // showMusicMenu();
       }
       else
       {
@@ -460,6 +462,7 @@ void MusicMatrixTaskHandler::updateMusicPlay()
       _lastInput = millis(); // don't go to blinky mode right after long song
 
       showMusicMenu();
+      delay(100);
     }
   }
 }
@@ -1015,7 +1018,7 @@ void MusicMatrixTaskHandler::alphaNumShiftIn(const char *str, size_t len)
     _alphaNum.writeDigitAscii(2, _alphaNumBuffer[2]);
     _alphaNum.writeDigitAscii(3, _alphaNumBuffer[3]);
   }
-  
+
   _alphaNum.writeDisplay();
 
   log_i("AlphaNum buffer: %c%c%c%c", _alphaNumBuffer[0], _alphaNumBuffer[1], _alphaNumBuffer[2], _alphaNumBuffer[3]);
