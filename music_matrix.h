@@ -430,14 +430,14 @@ void MusicMatrixTaskHandler::updateMusicPlay()
         alphaNumClear();
         neoKeyClear();
 
-        tuple<MusicMatrixTaskHandler *, const uint16_t *> taskParams = make_tuple(this, Songs[_neoKeyJustPressedIndex]);
-        xTaskCreatePinnedToCore(MusicMatrixTaskHandler::playMusicTask, "MusicTask", 4096 * 4, &taskParams, 1, &_bgTask, 1);
+        //tuple<MusicMatrixTaskHandler *, const uint16_t *> taskParams = make_tuple(this, Songs[_neoKeyJustPressedIndex]);
+        //xTaskCreatePinnedToCore(MusicMatrixTaskHandler::playMusicTask, "MusicTask", 4096 * 4, &taskParams, 1, &_bgTask, 1);
 
         // synchronous play
-        // const uint16_t *song = Songs[_neoKeyJustPressedIndex];
-        // playMusic(song, [this](uint8_t noteIndex, uint8_t octave, uint8_t timing)
-        //           { playNote(noteIndex, octave, timing); });
-        // showMusicMenu();
+        const uint16_t *song = Songs[_neoKeyJustPressedIndex];
+        playMusic(song, [this](uint8_t noteIndex, uint8_t octave, uint8_t timing)
+                  { playNote(noteIndex, octave, timing); });
+        showMusicMenu();
       }
       else
       {
@@ -746,6 +746,9 @@ void MusicMatrixTaskHandler::playNote(uint8_t noteIndex, uint8_t octave, uint8_t
     // show note on alphanum
     const char *noteName = Notes[noteIndex];
     alphaNumShiftIn(noteName);
+  }
+  else {
+    alphaNumShiftIn(" ");
   }
 
   // wait
