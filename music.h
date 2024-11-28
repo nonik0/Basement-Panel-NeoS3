@@ -19,14 +19,13 @@
 #define As 10 // A# (A sharp)
 #define Bf As // Bb (B flat)
 #define Bn 11 // B  (B normal)
-#define SILENCE 12
 #define NOTE_COUNT 12
 #define OCTAVE_MASK 0xF000
 #define NOTE_MASK 0x0F00
 #define TIMING_MASK 0x00FF
 #define N(note, octave, timing) ((octave << 12) | (note << 8) | timing)
-#define PAUSE(timing) N(SILENCE, SILENCE, timing)
-#define END N(SILENCE, SILENCE, 0)
+#define PAUSE(timing) N(0, 0, timing)
+#define END N(0, 0, 0)
 #define NO_TONE PAUSE(0)
 #define TIMING_UNIT_MS 60
 #define A4_FREQUENCY 440.0
@@ -94,7 +93,7 @@ const uint16_t MerryXmas[] PROGMEM = {
     N(Dn, 7, 16), N(Dn, 6, 16), N(Dn, 6, 8), N(Dn, 6, 8),
     N(En, 6, 16), N(An, 6, 16), N(Fs, 6, 16),
     N(Gn, 6, 32), PAUSE(16),
-    0};
+    END};
 const uint16_t JollyGoodFellow[] PROGMEM = {
     N(Dn, 7, 8),
     N(Bn, 6, 16), N(Bn, 6, 8), N(Bn, 6, 8), N(An, 6, 8), N(Bn, 6, 8),
@@ -119,7 +118,7 @@ const uint16_t JollyGoodFellow[] PROGMEM = {
     N(Dn, 7, 8), N(En, 7, 8), N(Dn, 7, 8), N(Cn, 7, 16), N(An, 6, 8),
     N(Gn, 6, 24), N(Gn, 6, 16), PAUSE(8),
     PAUSE(48),
-    0};
+    END};
 const uint16_t Reveille[] PROGMEM = {
     N(Gn, 6, 4),
     N(Cn, 7, 8), N(En, 7, 4), N(Cn, 7, 4), N(Gn, 6, 8), N(En, 7, 8),
@@ -147,7 +146,7 @@ const uint16_t BigBen[] PROGMEM = {
     N(Dn, 5, 32), N(An, 5, 32), N(Bn, 5, 32), N(Gn, 5, 32),
     N(Gn, 5, 32), N(Gn, 5, 32), N(Gn, 5, 32), N(Gn, 5, 32),
     PAUSE(32),
-    0};
+    END};
 const uint16_t T2Theme[] PROGMEM = {
     N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(20),
     N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), PAUSE(3), N(Dn, 6, 6), N(Dn, 6, 6), PAUSE(20),
@@ -171,7 +170,7 @@ const size_t SongCount = sizeof(Songs) / sizeof(Songs[0]);
 
 int getNoteFrequency(int note, int octave)
 {
-    if (note == SILENCE || note < Cn || note > Bn || octave < MIN_OCTAVE || octave > MAX_OCTAVE)
+    if (note == 0 && octave == 0)
     {
         return 0;
     }

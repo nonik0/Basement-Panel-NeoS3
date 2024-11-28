@@ -63,19 +63,17 @@ const tuple<uint8_t, uint16_t> AlphaNumFigure8Path[] = {
 const int AlphaNumFigure8PathLength = sizeof(AlphaNumFigure8Path) / sizeof(AlphaNumFigure8Path[0]);
 
 const tuple<uint8_t, uint16_t> AlphaNumWavyPath[] = {
-    {0, ALPHANUM_SEG_A}, {1, ALPHANUM_SEG_H}, {1, ALPHANUM_SEG_N}, {2, ALPHANUM_SEG_L}, {2, ALPHANUM_SEG_K}, {3, ALPHANUM_SEG_A}, {3, ALPHANUM_SEG_B}, {3, ALPHANUM_SEG_C}, {3, ALPHANUM_SEG_D},
-    {2, ALPHANUM_SEG_N}, {2, ALPHANUM_SEG_H}, {1, ALPHANUM_SEG_K}, {1, ALPHANUM_SEG_L}, {0, ALPHANUM_SEG_D}, {0, ALPHANUM_SEG_E}, {0, ALPHANUM_SEG_F}};
+    {0, ALPHANUM_SEG_A}, {1, ALPHANUM_SEG_H}, {1, ALPHANUM_SEG_N}, {2, ALPHANUM_SEG_L}, {2, ALPHANUM_SEG_K}, {3, ALPHANUM_SEG_A}, {3, ALPHANUM_SEG_B}, {3, ALPHANUM_SEG_C}, {3, ALPHANUM_SEG_D}, {2, ALPHANUM_SEG_N}, {2, ALPHANUM_SEG_H}, {1, ALPHANUM_SEG_K}, {1, ALPHANUM_SEG_L}, {0, ALPHANUM_SEG_D}, {0, ALPHANUM_SEG_E}, {0, ALPHANUM_SEG_F}};
 const int AlphaNumWavyPathLength = sizeof(AlphaNumWavyPath) / sizeof(AlphaNumWavyPath[0]);
 
 const tuple<uint8_t, uint16_t> AlphaNumZLoopPath[] = {
-    {0, ALPHANUM_SEG_A}, {1, ALPHANUM_SEG_A}, {2, ALPHANUM_SEG_A}, {3, ALPHANUM_SEG_A}, {3, ALPHANUM_SEG_B}, {3, ALPHANUM_SEG_G2}, {3, ALPHANUM_SEG_G1}, {2, ALPHANUM_SEG_G2}, {2, ALPHANUM_SEG_G1},
-    {1, ALPHANUM_SEG_G2}, {1, ALPHANUM_SEG_G1}, {0, ALPHANUM_SEG_G2}, {0, ALPHANUM_SEG_G1}, {0, ALPHANUM_SEG_E}, {0, ALPHANUM_SEG_D}, {1, ALPHANUM_SEG_D}, {2, ALPHANUM_SEG_D}, {3, ALPHANUM_SEG_D},
-    {3, ALPHANUM_SEG_C}, {3, ALPHANUM_SEG_G2}, {3, ALPHANUM_SEG_G1}, {2, ALPHANUM_SEG_G2}, {2, ALPHANUM_SEG_G1}, {1, ALPHANUM_SEG_G2}, {1, ALPHANUM_SEG_G1}, {0, ALPHANUM_SEG_G2}, {0, ALPHANUM_SEG_G1}, {0, ALPHANUM_SEG_F}};
+    {0, ALPHANUM_SEG_A}, {1, ALPHANUM_SEG_A}, {2, ALPHANUM_SEG_A}, {3, ALPHANUM_SEG_A}, {3, ALPHANUM_SEG_B}, {3, ALPHANUM_SEG_G2}, {3, ALPHANUM_SEG_G1}, {2, ALPHANUM_SEG_G2}, {2, ALPHANUM_SEG_G1}, {1, ALPHANUM_SEG_G2}, {1, ALPHANUM_SEG_G1}, {0, ALPHANUM_SEG_G2}, {0, ALPHANUM_SEG_G1}, {0, ALPHANUM_SEG_E}, {0, ALPHANUM_SEG_D}, {1, ALPHANUM_SEG_D}, {2, ALPHANUM_SEG_D}, {3, ALPHANUM_SEG_D}, {3, ALPHANUM_SEG_C}, {3, ALPHANUM_SEG_G2}, {3, ALPHANUM_SEG_G1}, {2, ALPHANUM_SEG_G2}, {2, ALPHANUM_SEG_G1}, {1, ALPHANUM_SEG_G2}, {1, ALPHANUM_SEG_G1}, {0, ALPHANUM_SEG_G2}, {0, ALPHANUM_SEG_G1}, {0, ALPHANUM_SEG_F}};
 const int AlphaNumZLoopPathLength = sizeof(AlphaNumZLoopPath) / sizeof(AlphaNumZLoopPath[0]);
 
 const tuple<uint8_t, uint16_t> *AlphaNumPaths[] = {AlphaNumLoopPath, AlphaNumFigure8Path, AlphaNumWavyPath, AlphaNumZLoopPath};
 int AlphaNumPathLengths[] = {AlphaNumLoopPathLength, AlphaNumFigure8PathLength, AlphaNumWavyPathLength, AlphaNumZLoopPathLength};
 int AlphaNumPathCount = sizeof(AlphaNumPaths) / sizeof(AlphaNumPaths[0]);
+
 const char *Ack1BootMessage = "Hello world!";
 const char *Ack1Message = "Dad loves Stella and Beau!";
 
@@ -379,7 +377,7 @@ void MusicMatrixTaskHandler::updateMusicPlay()
 {
   if (_rotaryJustRotated)
   {
-    int msIncrement = _rotaryEncPos > _rotaryLastEncPos ? TimingUnitIncrementMs : -TimingUnitIncrementMs;
+    int msIncrement = _rotaryEncPos < _rotaryLastEncPos ? TimingUnitIncrementMs : -TimingUnitIncrementMs;
     int newTimingUnitMs = constrain(_timingUnitMs + msIncrement, DefaultTimingUnitMs - TimingUnitDeltaMax, DefaultTimingUnitMs + TimingUnitDeltaMax);
 
     if (newTimingUnitMs != _timingUnitMs)
@@ -395,7 +393,7 @@ void MusicMatrixTaskHandler::updateMusicPlay()
       if (_bgTask == NULL)
       {
         char timingUnitStr[5];
-        snprintf(timingUnitStr, 5, "%04d", _timingUnitMs);
+        snprintf(timingUnitStr, 5, "%4d", _timingUnitMs);
         alphaNumShiftIn(timingUnitStr);
       }
     }
@@ -413,7 +411,7 @@ void MusicMatrixTaskHandler::updateMusicPlay()
       if (_bgTask == NULL)
       {
         char timingUnitStr[5];
-        snprintf(timingUnitStr, 5, "%04d", _octaveAdjust);
+        snprintf(timingUnitStr, 5, "%4d", _octaveAdjust);
         alphaNumShiftIn(timingUnitStr);
       }
     }
@@ -723,26 +721,29 @@ void MusicMatrixTaskHandler::playNote(uint8_t noteIndex, uint8_t octave, uint8_t
   neoKeyClear(false);
   neoSliderClear(false);
 
-  // TODO: smaller increments than whole octave
-  uint32_t noteColor = wheel(map(noteIndex, 0, SS_NEOKEY_COUNT, 0, 255));
-  uint32_t octaveColor = octave % 2 == 0 ? BLUE : RED; // show in 4 steps on slider, low octave is blue, high is red
-
   int frequency = getNoteFrequency(noteIndex, octave + _octaveAdjust);
-
   ack1Tone(frequency);
 
-  // show note on neokey
-  _neoKey.setPixelColor(noteIndex, noteColor);
-  _neoKey.show();
+  // don't show note if pause
+  int sliderIndex = 4 - octave / 2; // show in 4 steps on slider
+  if (frequency > 0)
+  {
+    // TODO: smaller increments than whole octave
+    uint32_t noteColor = wheel(map(noteIndex, 0, SS_NEOKEY_COUNT, 0, 255));
+    uint32_t octaveColor = octave % 2 == 0 ? BLUE : RED; // at each index low octave is blue, high is red
 
-  // show octave on neoslider
-  int sliderIndex = 4 - octave / 2; // slider is oriented inverted
-  _neoSliderPixels.setPixelColor(sliderIndex, octaveColor);
-  _neoSliderPixels.show();
+    // show note on neokey
+    _neoKey.setPixelColor(noteIndex, noteColor);
+    _neoKey.show();
 
-  // show note on alphanum
-  const char *noteName = Notes[noteIndex];
-  alphaNumShiftIn(noteName);
+    // show octave on neoslider
+    _neoSliderPixels.setPixelColor(sliderIndex, octaveColor);
+    _neoSliderPixels.show();
+
+    // show note on alphanum
+    const char *noteName = Notes[noteIndex];
+    alphaNumShiftIn(noteName);
+  }
 
   // wait
   delay(timing * _timingUnitMs);
@@ -750,11 +751,13 @@ void MusicMatrixTaskHandler::playNote(uint8_t noteIndex, uint8_t octave, uint8_t
   ack1Tone(0);
 
   // off
-  _neoKey.setPixelColor(noteIndex, 0);
-  _neoKey.show();
-  _neoSliderPixels.setPixelColor(sliderIndex, 0);
-  _neoSliderPixels.show();
-
+  if (frequency > 0)
+  {
+    _neoKey.setPixelColor(noteIndex, 0);
+    _neoKey.show();
+    _neoSliderPixels.setPixelColor(sliderIndex, 0);
+    _neoSliderPixels.show();
+  }
   // timing between notes (half unit of time)
   delay(_timingUnitMs >> 1);
 }
@@ -1011,9 +1014,9 @@ void MusicMatrixTaskHandler::alphaNumShiftIn(const char *str, size_t len)
     _alphaNum.writeDigitAscii(1, _alphaNumBuffer[1]);
     _alphaNum.writeDigitAscii(2, _alphaNumBuffer[2]);
     _alphaNum.writeDigitAscii(3, _alphaNumBuffer[3]);
-
-    _alphaNum.writeDisplay();
   }
+  
+  _alphaNum.writeDisplay();
 
   log_i("AlphaNum buffer: %c%c%c%c", _alphaNumBuffer[0], _alphaNumBuffer[1], _alphaNumBuffer[2], _alphaNumBuffer[3]);
 }
