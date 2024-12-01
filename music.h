@@ -156,17 +156,9 @@ const uint16_t T2Theme[] PROGMEM = {
     N(Dn, 6, 9), N(En, 6, 9), N(Fn, 6, 60), N(En, 6, 15), N(Cn, 6, 9), N(Fn, 5, 60),
     N(Dn, 6, 9), N(En, 6, 9), N(Fn, 6, 60), N(En, 6, 15), N(Cn, 6, 9), N(An, 6, 60), N(Gn, 6, 60),
     N(Dn, 6, 9), N(En, 6, 9), N(Fn, 6, 60), N(En, 6, 15), N(Cn, 6, 9), N(Gn, 5, 60),
-    N(Fn, 5, 60), N(Dn, 5, 9), N(Fn, 5, 60), N(En, 5, 60), END};
-
-const uint16_t TestSong[] PROGMEM = {
-    N(Dn, 6, 10), N(Dn, 6, 10), PAUSE(5), N(Dn, 6, 10), PAUSE(5), N(Dn, 6, 10), N(Dn, 6, 10), PAUSE(30),
-    N(Dn, 6, 10), N(Dn, 6, 10), PAUSE(5), N(Dn, 6, 10), PAUSE(5), N(Dn, 6, 10), N(Dn, 6, 10), PAUSE(30),
+    N(Fn, 5, 60), N(Dn, 5, 9), N(Fn, 5, 60), N(En, 5, 60),
     END};
 
-//  8 => 4 unit
-//  4 => 8 unit
-// -4 => 12 unit
-// -8 => 6 unit
 const uint16_t SuperMario[] PROGMEM = {
     N(En, 5, 4), N(En, 5, 4), PAUSE(4), N(En, 5, 4), PAUSE(4), N(Cn, 5, 4), N(En, 5, 4),
     N(Gn, 5, 8), PAUSE(8), N(Gn, 4, 4), PAUSE(8),
@@ -177,98 +169,82 @@ const uint16_t SuperMario[] PROGMEM = {
     N(Cn, 5, 12), N(Gn, 4, 4), PAUSE(8), N(En, 4, 12),
     N(An, 4, 8), N(Bn, 4, 8), N(As, 4, 4), N(An, 4, 8),
     N(Gn, 4, 6), N(En, 5, 6), N(Gn, 5, 6), N(An, 5, 6), N(Fn, 5, 4), N(Gn, 5, 4),
-    PAUSE(4), N(En, 5, 4), N(Cn, 5, 8), N(Dn, 5, 8), N(Bn, 4, 4),
+    PAUSE(4), N(En, 5, 8), N(Cn, 5, 4), N(Dn, 5, 4), N(Bn, 4, 12),
+
+    PAUSE(8), N(Gn, 5, 4), N(Fs, 5, 4), N(Fn, 5, 4), N(Ds, 5, 8), N(En, 5, 4),
+    PAUSE(4), N(Gs, 4, 4), N(An, 4, 4), N(Cn, 4, 4), PAUSE(4), N(An, 4, 4), N(Cn, 5, 4), N(Dn, 5, 4),
+    PAUSE(8), N(Ds, 5, 8), PAUSE(4), N(Dn, 5, 12),
+    N(Cn, 5, 16), PAUSE(16),
+
+    PAUSE(8), N(Gn, 5, 4), N(Fs, 5, 4), N(Fn, 5, 4), N(Ds, 5, 8), N(En, 5, 4),
+    PAUSE(4), N(Gs, 4, 4), N(An, 4, 4), N(Cn, 4, 4), PAUSE(4), N(An, 4, 4), N(Cn, 5, 4), N(Dn, 5, 4),
+    PAUSE(8), N(Ds, 5, 8), PAUSE(4), N(Dn, 5, 12),
+    N(Cn, 5, 16), PAUSE(16),
+
+    N(Cn, 5, 4), N(Cn, 5, 8), N(Cn, 5, 4), PAUSE(4), N(Cn, 5, 4), N(Dn, 5, 8),
+    N(En, 5, 4), N(Cn, 5, 8), N(An, 4, 4), N(Gn, 4, 16),
+
+    N(Cn, 5, 4), N(Cn, 5, 8), N(Cn, 5, 4), PAUSE(4), N(Cn, 5, 4), N(Dn, 5, 8),
+    PAUSE(32),
+
+    N(Cn, 5, 4), N(Cn, 5, 8), N(Cn, 5, 4), PAUSE(4), N(Cn, 5, 4), N(Dn, 5, 8),
+    N(En, 5, 4), N(Cn, 5, 8), N(An, 4, 4), N(Gn, 4, 16),
+    N(En, 5, 4), N(En, 5, 4), PAUSE(4), N(En, 5, 4), PAUSE(4), N(Cn, 5, 4), N(En, 5, 8),
+    N(Gn, 5, 8), PAUSE(8), N(Gn, 4, 8), PAUSE(8),
+    N(Cn, 5, 12), N(Gn, 4, 4), PAUSE(8), N(En, 4, 12),
+
+    N(An, 4, 8), N(Bn, 4, 8), N(As, 4, 4), N(An, 4, 8),
+    N(Gn, 4, 6), N(En, 5, 6), N(Gn, 5, 6), N(An, 5, 8), N(Fn, 5, 4), N(Gn, 5, 4),
+    PAUSE(4), N(En, 5, 8), N(Cn, 5, 4), N(Dn, 5, 4), N(Bn, 4, 12),
+
+    N(Cn, 5, 12), N(Gn, 4, 4), PAUSE(8), N(En, 4, 12),
+    N(An, 4, 8), N(Bn, 4, 8), N(As, 4, 4), N(An, 4, 8),
+    N(Gn, 4, 6), N(En, 5, 6), N(Gn, 5, 6), N(An, 5, 8), N(Fn, 5, 4), N(Gn, 5, 4),
+    PAUSE(4), N(En, 5, 8), N(Cn, 5, 4), N(Dn, 5, 4), N(Bn, 4, 12),
+
+    N(En, 5, 4), N(Cn, 5, 8), N(Gn, 4, 4), PAUSE(8), N(Gs, 4, 8),
+    N(An, 4, 4), N(Fn, 5, 8), N(Fn, 5, 4), N(An, 4, 16),
+    N(Dn, 5, 6), N(An, 5, 6), N(An, 5, 6), N(An, 5, 6), N(Gn, 5, 6), N(Fn, 5, 6),
+
+    N(En, 5, 4), N(Cn, 5, 8), N(An, 4, 4), N(Gs, 4, 16),
+    N(En, 5, 4), N(Cn, 5, 8), N(Gn, 4, 4), PAUSE(8), N(Gs, 4, 8),
+    N(An, 4, 4), N(Fn, 5, 8), N(Fn, 5, 4), N(As, 4, 16),
+    N(Bn, 4, 4), N(Fn, 5, 8), N(Fn, 5, 4), N(Fs, 5, 6), N(En, 5, 6), N(Dn, 5, 6),
+    N(Cn, 5, 4), N(En, 4, 8), N(En, 4, 4), N(Cs, 4, 16),
+
+    N(En, 5, 4), N(Cn, 5, 8), N(Gn, 4, 4), PAUSE(8), N(Gs, 4, 8),
+    N(An, 4, 4), N(Fn, 5, 8), N(Fn, 5, 4), N(An, 4, 16),
+    N(Dn, 5, 6), N(An, 5, 6), N(An, 5, 6), N(An, 5, 6), N(Gn, 5, 6), N(Fn, 5, 6),
+
+    N(En, 5, 4), N(Cn, 5, 8), N(An, 4, 4), N(Gs, 4, 16),
+    N(En, 5, 4), N(Cn, 5, 8), N(Gn, 4, 4), PAUSE(8), N(Gs, 4, 8),
+    N(An, 4, 4), N(Fn, 5, 8), N(Fn, 5, 4), N(As, 4, 16),
+    N(Bn, 4, 4), N(Fn, 5, 8), N(Fn, 5, 4), N(Fs, 5, 6), N(En, 5, 6), N(Dn, 5, 6),
+    N(Cn, 5, 4), N(En, 4, 8), N(En, 4, 4), N(Cs, 4, 16),
+    N(Cn, 5, 4), N(Cn, 5, 8), N(Cn, 5, 4), PAUSE(4), N(Cn, 5, 4), N(Dn, 5, 4), N(En, 5, 8),
+    PAUSE(32),             
+
+    N(Cn, 5, 4), N(Cn, 5, 8), N(Cn, 5, 4), PAUSE(4), N(Cn, 5, 4), N(Dn, 5, 8),
+    N(En, 5, 4), N(Cn, 5, 8), N(An, 4, 4), N(Gn, 4, 16),
+    N(En, 5, 4), N(En, 5, 4), PAUSE(4), N(En, 5, 4), PAUSE(4), N(Cn, 5, 4), N(En, 5, 8),
+    N(Gn, 5, 8), PAUSE(8), N(Gn, 4, 8), PAUSE(8),
+    N(En, 5, 4), N(Cn, 5, 8), N(Gn, 4, 4), PAUSE(8), N(Gs, 4, 8),
+    N(An, 4, 4), N(Fn, 5, 8), N(Fn, 5, 4), N(An, 4, 16),
+    N(Dn, 5, 6), N(An, 5, 6), N(An, 5, 6), N(An, 5, 6), N(Gn, 5, 6), N(Fn, 5, 6),
+
+    N(En, 5, 4), N(Cn, 5, 8), N(An, 4, 4), N(Gs, 4, 16),
+    N(En, 5, 4), N(Cn, 5, 8), N(Gn, 4, 4), PAUSE(8), N(Gs, 4, 8),
+    N(An, 4, 4), N(Fn, 5, 8), N(Fn, 5, 4), N(As, 4, 16),
+    N(Bn, 4, 4), N(Fn, 5, 8), N(Fn, 5, 4), N(Fs, 5, 6), N(En, 5, 6), N(Dn, 5, 6),
+    N(Cn, 5, 4), N(En, 4, 8), N(En, 4, 4), N(Cs, 4, 16),
+
+    N(Cn, 5, 12), N(Gn, 4, 12), N(En, 4, 8),
+    N(An, 4, 6), N(Bn, 4, 6), N(An, 4, 6), N(Gs, 4, 6), N(As, 4, 6), N(Gs, 4, 6),
+    N(Gn, 4, 4), N(Dn, 4, 4), N(En, 4, 24),
+
     END};
 
 /*
-
-tempo: 200
-wholenotems: (60000 * 4) / tempo => 1.2s => quarter note is 300ms
-
-int melody[] = {
-
-  // Super Mario Bros theme
-  // Score available at https://musescore.com/user/2123/scores/2145
-  // Theme by Koji Kondo
-
-
-  NOTE_E5,8, NOTE_E5,8, REST,8, NOTE_E5,8, REST,8, NOTE_C5,8, NOTE_E5,8, //1
-  NOTE_G5,4, REST,4, NOTE_G4,8, REST,4,
-  NOTE_C5,-4, NOTE_G4,8, REST,4, NOTE_E4,-4, // 3
-  NOTE_A4,4, NOTE_B4,4, NOTE_AS4,8, NOTE_A4,4,
-  NOTE_G4,-8, NOTE_E5,-8, NOTE_G5,-8, NOTE_A5,4, NOTE_F5,8, NOTE_G5,8,
-  REST,8, NOTE_E5,4,NOTE_C5,8, NOTE_D5,8, NOTE_B4,-4,
-  NOTE_C5,-4, NOTE_G4,8, REST,4, NOTE_E4,-4, // repeats from 3
-  NOTE_A4,4, NOTE_B4,4, NOTE_AS4,8, NOTE_A4,4,
-  NOTE_G4,-8, NOTE_E5,-8, NOTE_G5,-8, NOTE_A5,4, NOTE_F5,8, NOTE_G5,8,
-  REST,8, NOTE_E5,4,NOTE_C5,8, NOTE_D5,8, NOTE_B4,-4,
-
-
-  REST,4, NOTE_G5,8, NOTE_FS5,8, NOTE_F5,8, NOTE_DS5,4, NOTE_E5,8,//7
-  REST,8, NOTE_GS4,8, NOTE_A4,8, NOTE_C4,8, REST,8, NOTE_A4,8, NOTE_C5,8, NOTE_D5,8,
-  REST,4, NOTE_DS5,4, REST,8, NOTE_D5,-4,
-  NOTE_C5,2, REST,2,
-
-  REST,4, NOTE_G5,8, NOTE_FS5,8, NOTE_F5,8, NOTE_DS5,4, NOTE_E5,8,//repeats from 7
-  REST,8, NOTE_GS4,8, NOTE_A4,8, NOTE_C4,8, REST,8, NOTE_A4,8, NOTE_C5,8, NOTE_D5,8,
-  REST,4, NOTE_DS5,4, REST,8, NOTE_D5,-4,
-  NOTE_C5,2, REST,2,
-
-  NOTE_C5,8, NOTE_C5,4, NOTE_C5,8, REST,8, NOTE_C5,8, NOTE_D5,4,//11
-  NOTE_E5,8, NOTE_C5,4, NOTE_A4,8, NOTE_G4,2,
-
-  NOTE_C5,8, NOTE_C5,4, NOTE_C5,8, REST,8, NOTE_C5,8, NOTE_D5,8, NOTE_E5,8,//13
-  REST,1,
-  NOTE_C5,8, NOTE_C5,4, NOTE_C5,8, REST,8, NOTE_C5,8, NOTE_D5,4,
-  NOTE_E5,8, NOTE_C5,4, NOTE_A4,8, NOTE_G4,2,
-  NOTE_E5,8, NOTE_E5,8, REST,8, NOTE_E5,8, REST,8, NOTE_C5,8, NOTE_E5,4,
-  NOTE_G5,4, REST,4, NOTE_G4,4, REST,4,
-  NOTE_C5,-4, NOTE_G4,8, REST,4, NOTE_E4,-4, // 19
-
-  NOTE_A4,4, NOTE_B4,4, NOTE_AS4,8, NOTE_A4,4,
-  NOTE_G4,-8, NOTE_E5,-8, NOTE_G5,-8, NOTE_A5,4, NOTE_F5,8, NOTE_G5,8,
-  REST,8, NOTE_E5,4, NOTE_C5,8, NOTE_D5,8, NOTE_B4,-4,
-
-  NOTE_C5,-4, NOTE_G4,8, REST,4, NOTE_E4,-4, // repeats from 19
-  NOTE_A4,4, NOTE_B4,4, NOTE_AS4,8, NOTE_A4,4,
-  NOTE_G4,-8, NOTE_E5,-8, NOTE_G5,-8, NOTE_A5,4, NOTE_F5,8, NOTE_G5,8,
-  REST,8, NOTE_E5,4, NOTE_C5,8, NOTE_D5,8, NOTE_B4,-4,
-
-  NOTE_E5,8, NOTE_C5,4, NOTE_G4,8, REST,4, NOTE_GS4,4,//23
-  NOTE_A4,8, NOTE_F5,4, NOTE_F5,8, NOTE_A4,2,
-  NOTE_D5,-8, NOTE_A5,-8, NOTE_A5,-8, NOTE_A5,-8, NOTE_G5,-8, NOTE_F5,-8,
-
-  NOTE_E5,8, NOTE_C5,4, NOTE_A4,8, NOTE_G4,2, //26
-  NOTE_E5,8, NOTE_C5,4, NOTE_G4,8, REST,4, NOTE_GS4,4,
-  NOTE_A4,8, NOTE_F5,4, NOTE_F5,8, NOTE_A4,2,
-  NOTE_B4,8, NOTE_F5,4, NOTE_F5,8, NOTE_F5,-8, NOTE_E5,-8, NOTE_D5,-8,
-  NOTE_C5,8, NOTE_E4,4, NOTE_E4,8, NOTE_C4,2,
-
-  NOTE_E5,8, NOTE_C5,4, NOTE_G4,8, REST,4, NOTE_GS4,4,//repeats from 23
-  NOTE_A4,8, NOTE_F5,4, NOTE_F5,8, NOTE_A4,2,
-  NOTE_D5,-8, NOTE_A5,-8, NOTE_A5,-8, NOTE_A5,-8, NOTE_G5,-8, NOTE_F5,-8,
-
-  NOTE_E5,8, NOTE_C5,4, NOTE_A4,8, NOTE_G4,2, //26
-  NOTE_E5,8, NOTE_C5,4, NOTE_G4,8, REST,4, NOTE_GS4,4,
-  NOTE_A4,8, NOTE_F5,4, NOTE_F5,8, NOTE_A4,2,
-  NOTE_B4,8, NOTE_F5,4, NOTE_F5,8, NOTE_F5,-8, NOTE_E5,-8, NOTE_D5,-8,
-  NOTE_C5,8, NOTE_E4,4, NOTE_E4,8, NOTE_C4,2,
-  NOTE_C5,8, NOTE_C5,4, NOTE_C5,8, REST,8, NOTE_C5,8, NOTE_D5,8, NOTE_E5,8,
-  REST,1,
-
-  NOTE_C5,8, NOTE_C5,4, NOTE_C5,8, REST,8, NOTE_C5,8, NOTE_D5,4, //33
-  NOTE_E5,8, NOTE_C5,4, NOTE_A4,8, NOTE_G4,2,
-  NOTE_E5,8, NOTE_E5,8, REST,8, NOTE_E5,8, REST,8, NOTE_C5,8, NOTE_E5,4,
-  NOTE_G5,4, REST,4, NOTE_G4,4, REST,4,
-  NOTE_E5,8, NOTE_C5,4, NOTE_G4,8, REST,4, NOTE_GS4,4,
-  NOTE_A4,8, NOTE_F5,4, NOTE_F5,8, NOTE_A4,2,
-  NOTE_D5,-8, NOTE_A5,-8, NOTE_A5,-8, NOTE_A5,-8, NOTE_G5,-8, NOTE_F5,-8,
-
-  NOTE_E5,8, NOTE_C5,4, NOTE_A4,8, NOTE_G4,2, //40
-  NOTE_E5,8, NOTE_C5,4, NOTE_G4,8, REST,4, NOTE_GS4,4,
-  NOTE_A4,8, NOTE_F5,4, NOTE_F5,8, NOTE_A4,2,
-  NOTE_B4,8, NOTE_F5,4, NOTE_F5,8, NOTE_F5,-8, NOTE_E5,-8, NOTE_D5,-8,
-  NOTE_C5,8, NOTE_E4,4, NOTE_E4,8, NOTE_C4,2,
 
   //game over sound
   NOTE_C5,-4, NOTE_G4,-4, NOTE_E4,4, //45
@@ -277,6 +253,11 @@ int melody[] = {
 
 };
 */
+
+const uint16_t TestSong[] PROGMEM = {
+    N(Dn, 6, 10), N(Dn, 6, 10), PAUSE(5), N(Dn, 6, 10), PAUSE(5), N(Dn, 6, 10), N(Dn, 6, 10), PAUSE(30),
+    N(Dn, 6, 10), N(Dn, 6, 10), PAUSE(5), N(Dn, 6, 10), PAUSE(5), N(Dn, 6, 10), N(Dn, 6, 10), PAUSE(30),
+    END};
 
 const uint16_t(*Songs[]) PROGMEM = {
     TwinkleTwinkle,
@@ -308,13 +289,15 @@ using PlayNoteCallback = std::function<void(uint8_t, uint8_t, uint8_t)>;
 void playMusic(const uint16_t *music, PlayNoteCallback playNote)
 {
     int noteIndex = 0;
-    uint16_t note;
-    while ((note = music[noteIndex++]) != END)
+    uint16_t note = music[noteIndex++];
+    while (note != END)
     {
         uint8_t octave = (note & OCTAVE_MASK) >> 12;
         uint8_t index = (note & NOTE_MASK) >> 8;
         uint8_t timing = note & TIMING_MASK;
 
         playNote(index, octave, timing);
+
+        note = music[noteIndex++];
     }
 }

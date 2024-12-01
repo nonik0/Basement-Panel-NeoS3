@@ -772,7 +772,7 @@ void MusicMatrixTaskHandler::showMusicMenu()
 {
   for (int i = 0; i < SS_NEOKEY_COUNT; i++)
   {
-    uint32_t color = (i < SongCount) ? wheel(map(i, 0, SongCount, 0, 255)) : 0;
+    uint32_t color = (i < SongCount) ? wheel(map(i, 0, SongCount, 0x00, 0xFF)) : 0;
     _neoKey.setPixelColor(i, color);
   }
   _neoKey.show();
