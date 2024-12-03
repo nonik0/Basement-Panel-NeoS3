@@ -56,8 +56,8 @@ def translate_file(input_file, output_file):
                 outfile.write("\n")
 
 # Input and output file paths
-input_file = "misc/mario_notes_raw.txt"
-output_file = "misc/mario_notes.txt"
+input_file = "misc/song.txt"
+output_file = "misc/song_new.txt"
 
 # Translate the file
 translate_file(input_file, output_file)

@@ -3,7 +3,7 @@
 #include <Adafruit_NeoPixel.h>
 
 #include "display_task_handler.h"
-#include "maze_runner.h"
+#include "maze_runner_lib.h"
 
 class MazeRunner7x7TaskHandler : public DisplayTaskHandler
 {
