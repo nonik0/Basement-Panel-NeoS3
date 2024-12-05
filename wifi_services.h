@@ -15,6 +15,7 @@ class WifiServices
 {
 private:
   using SetDisplayCallback = std::function<void(bool)>;
+  using SetMessageCallback = std::function<void(const char *)>;
   const int ConnectionTimeoutMs = 10 * 1000;
   const int StatusCheckIntervalMs = 60 * 1000;
 
@@ -26,11 +27,13 @@ private:
   ArduinoOTAClass _ota;
   WebServer _restServer;
   vector<SetDisplayCallback> _setDisplayCallbacks;
+  vector<SetMessageCallback> _setMessageCallbacks;
 
 public:
   void setup(const char *hostname);
   void createTask();
   void registerSetDisplayCallback(SetDisplayCallback callback);
+  void registerSetMessageCallback(SetMessageCallback callback);
 
 private:
   void task();
@@ -43,6 +46,7 @@ private:
 
   void restIndex();
   void restDisplay();
+  void restMessage();
 };
 
 void WifiServices::setup(const char *hostname)
@@ -88,6 +92,11 @@ void WifiServices::createTask()
 void WifiServices::registerSetDisplayCallback(SetDisplayCallback callback)
 {
   _setDisplayCallbacks.push_back(callback);
+}
+
+void WifiServices::registerSetMessageCallback(SetMessageCallback callback)
+{
+  _setMessageCallbacks.push_back(callback);
 }
 
 void WifiServices::task()
@@ -240,6 +249,27 @@ void WifiServices::restDisplay()
 
   _restServer.send(200, "text/plain", _displayState ? "on" : "off");
 }
+
+// void WifiServices::restMessage(char *message)
+// {
+//   String newMessage = "";
+
+//   if (_restServer.hasArg("plain"))
+//   {
+//     newMessage = _restServer.arg("plain"); 
+//   }
+//   else if (_restServer.hasArg("message"))
+//   {
+//     newMessage = _restServer.arg("message");
+//   }
+
+//   if (newMessage.length() > 0)
+//   {
+//     strcpy(message, newMessage.c_str());
+//   }
+
+//   _restServer.send(200, "text/plain", message);
+// }
 
 void WifiServices::restSetup()
 {

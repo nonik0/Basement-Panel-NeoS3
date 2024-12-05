@@ -365,3 +365,18 @@ const uint16_t(*Songs[]) PROGMEM = {
     Tetris
 };
 const size_t SongCount = sizeof(Songs) / sizeof(Songs[0]);
+const char* SongName4Chars[] = {
+    "XMAS",
+    "LAMB",
+    "JOLY",
+    "BEN ",
+
+    "T-2 ",
+    "MRIO",
+    "STRM",
+    "REVE",
+
+    "ZLDA",
+    "STAR",
+    "TETR"
+};
