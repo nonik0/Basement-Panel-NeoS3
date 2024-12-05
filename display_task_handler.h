@@ -13,7 +13,7 @@ protected:
 public:
     virtual bool createTask() = 0;
 
-    char *getMessage() { return _message; }
+    const char *getMessage() { return _message; }
 
     virtual void setDisplay(bool displayState) { _display = displayState; }
 

@@ -29,6 +29,9 @@ void setup()
   wifiServices.registerSetDisplayCallback([](bool display)
                                           { musicMatrix.setDisplay(display); });
 
+  wifiServices.registerSetMessageCallback("/8x16", [](const char *message)
+                                          { if (strlen(message) > 0)  matrix8x16.setMessage(message);
+                                            return matrix8x16.getMessage(); });
 
   log_i("Setup complete");
 }

@@ -18,9 +18,11 @@ private:
 public:
     Matrix8x16TaskHandler() {}
     bool createTask() override;
+    void setMessage(const char *message) override;
 
 private:
     void task(void *parameters) override;
+    void initializeMessage();
 };
 
 bool Matrix8x16TaskHandler::createTask()
@@ -44,15 +46,18 @@ bool Matrix8x16TaskHandler::createTask()
     _matrix.setTextWrap(false);
     _matrix.setTextColor(LED_ON);
 
-    strcpy(_message, "Stella and Beau and ");
-    int16_t d1;
-    uint16_t d2;
-    _matrix.getTextBounds(String(_message), 0, 0, &d1, &d1, &_messageWidth, &d2);
+    initializeMessage();
 
     xTaskCreate(taskWrapper, "Matrix8x16Task", 4096, this, 2, &_taskHandle);
     log_d("Matrix initialized and task started");
 
     return true;
+}
+
+void Matrix8x16TaskHandler::setMessage(const char *message)
+{
+    DisplayTaskHandler::setMessage(message);
+    initializeMessage();
 }
 
 void Matrix8x16TaskHandler::task(void *parameters)
@@ -81,4 +86,12 @@ void Matrix8x16TaskHandler::task(void *parameters)
 
         delay(DELAY_MS);
     }
+}
+
+void Matrix8x16TaskHandler::initializeMessage()
+{
+    int16_t d1;
+    uint16_t d2;
+    _matrix.getTextBounds(String(_message), 0, 0, &d1, &d1, &_messageWidth, &d2);
+    _scroll = _matrix.width();
 }
