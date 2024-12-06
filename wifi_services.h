@@ -10,14 +10,15 @@
 #include "secrets.h"
 
 using namespace std;
+using SetDisplayCallback = std::function<void(bool)>;
+using SetMessageCallback = std::function<const char *(const char *)>;
 
 class WifiServices
 {
 private:
-  using SetDisplayCallback = std::function<void(bool)>;
-  using SetMessageCallback = std::function<const char *(const char *)>;
   const int ConnectionTimeoutMs = 10 * 1000;
   const int StatusCheckIntervalMs = 60 * 1000;
+  const int TaskPriority = 1; // lowest priority
 
   const char *_hostname;
   const char *_hostnameLower;
@@ -77,15 +78,14 @@ void WifiServices::createTask()
 {
   log_i("Starting WifiServicesTask");
 
-  xTaskCreatePinnedToCore(
+  xTaskCreate(
       [](void *p)
       { ((WifiServices *)p)->task(); },
       "WifiServicesTask",
       8192,
       this,
-      100, // lower priority than other tasks
-      NULL,
-      1); // Core 1
+      TaskPriority,
+      NULL);
 }
 
 void WifiServices::registerSetDisplayCallback(SetDisplayCallback callback)

@@ -96,6 +96,14 @@ public:
       uint32_t exitColor,
       std::function<void(int, int, uint32_t)> drawPixel,
       std::function<void(uint32_t)> setStatus = nullptr);
+  MazeRunner(
+      int width, int height,
+      uint32_t pathColor, uint32_t wallColor,
+      uint32_t runnerColor,
+      uint32_t exitColor,
+      std::function<void(int, int, uint32_t)> drawPixel,
+      std::function<void(uint32_t)> setStatus = nullptr)
+      : MazeRunner(width, height, pathColor, wallColor, runnerColor, pathColor, exitColor, drawPixel, setStatus) {} // sentry disabled if same color as path
 
   void init();
   bool update(); // returns true if any pixel changed

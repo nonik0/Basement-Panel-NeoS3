@@ -9,6 +9,7 @@ class Matrix8x16TaskHandler : public DisplayTaskHandler
 {
 private:
     static const uint8_t I2C_ADDR = 0x72;
+    static const uint8_t TASK_PRIORITY = 5;
     const int DELAY_MS = 60;
 
     Adafruit_8x16minimatrix _matrix = Adafruit_8x16minimatrix();
@@ -48,7 +49,7 @@ bool Matrix8x16TaskHandler::createTask()
 
     initializeMessage();
 
-    xTaskCreate(taskWrapper, "Matrix8x16Task", 4096, this, 2, &_taskHandle);
+    xTaskCreate(taskWrapper, "Matrix8x16Task", 4096, this, TASK_PRIORITY, &_taskHandle);
     log_d("Matrix initialized and task started");
 
     return true;
