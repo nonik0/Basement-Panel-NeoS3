@@ -84,6 +84,8 @@ uint32_t BLUE = 0x0000FF;
 class MusicMatrixTaskHandler : public DisplayTaskHandler
 {
 private:
+  static const int TASK_PRIORITY = 6;
+
   enum Mode
   {
     Music,
@@ -227,7 +229,7 @@ bool MusicMatrixTaskHandler::createTask()
   ack1Setup(); // slow to initialize
 
   log_i("Starting InputTask");
-  xTaskCreatePinnedToCore(taskWrapper, "InputTask", 4096 * 4, this, 1, &_taskHandle, 1);
+  xTaskCreatePinnedToCore(taskWrapper, "InputTask", 4096 * 4, this, TASK_PRIORITY, &_taskHandle, 1);
 
   log_i("Input setup complete");
   return true;
@@ -280,14 +282,6 @@ void MusicMatrixTaskHandler::update()
   if (_rotaryJustPressed)
   {
     changeMode();
-  }
-
-  // rotary encoder changes color
-  if (_rotaryJustRotated)
-  {
-    _rotaryWheelPos = (_rotaryEncPos * 5) & 0xFF;
-    _rotaryNeoPixel.setPixelColor(0, wheel(_rotaryWheelPos)); // 3 rotations for full cycle with 24 step encoder?
-    _rotaryNeoPixel.show();
   }
 
   if (_mode == Mode::Music)
@@ -500,6 +494,14 @@ void MusicMatrixTaskHandler::updateMusicPlay()
 
 void MusicMatrixTaskHandler::updateLights()
 {
+  // rotary encoder changes color
+  if (_rotaryJustRotated)
+  {
+    _rotaryWheelPos = (_rotaryEncPos * 5) & 0xFF;
+    _rotaryNeoPixel.setPixelColor(0, wheel(_rotaryWheelPos)); // 3 rotations for full cycle with 24 step encoder?
+    _rotaryNeoPixel.show();
+  }
+
   if (_neoKeyJustPressedIndex >= 0)
   {
     uint32_t color = wheel(map(_neoKeyJustPressedIndex, 0, SS_NEOKEY_COUNT, 0, 255));
@@ -544,6 +546,14 @@ void MusicMatrixTaskHandler::updateBlinky()
   {
     changeMode(Mode::PlaySong);
     return;
+  }
+
+  // rotary encoder changes color
+  if (_rotaryJustRotated)
+  {
+    _rotaryWheelPos = (_rotaryEncPos * 5) & 0xFF;
+    _rotaryNeoPixel.setPixelColor(0, wheel(_rotaryWheelPos)); // 3 rotations for full cycle with 24 step encoder?
+    _rotaryNeoPixel.show();
   }
 
   // blink alphanum

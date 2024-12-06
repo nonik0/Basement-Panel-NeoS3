@@ -8,6 +8,7 @@
 class MazeRunner7x7TaskHandler : public DisplayTaskHandler
 {
 private:
+    static const int TASK_PRIORITY = 5;
     const int MAZE_DELAY_MS = 60;
     const uint32_t BLACK = Adafruit_NeoPixel::Color(0x00, 0x00, 0x00);
     const uint32_t RED = Adafruit_NeoPixel::Color(0xFF, 0x00, 0x00);
@@ -78,7 +79,7 @@ bool MazeRunner7x7TaskHandler::createTask()
     _mazeRunner->init();
 
     log_i("Starting MazeRunner7x7Task");
-    xTaskCreatePinnedToCore(taskWrapper, "MazeRunner7x7Task", 4096 * 4, this, 2, &_taskHandle, 0); // other Arduino tasks are on Core 1
+    xTaskCreatePinnedToCore(taskWrapper, "MazeRunner7x7Task", 4096 * 4, this, TASK_PRIORITY, &_taskHandle, 0); // other Arduino tasks are on Core 1
 
     log_i("MazeRunner7x7 setup complete");
     return true;
