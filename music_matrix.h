@@ -84,6 +84,7 @@ uint32_t BLUE = 0x0000FF;
 class MusicMatrixTaskHandler : public DisplayTaskHandler
 {
 private:
+  static const int SONG_TASK_PRIORITY = 10;
   static const int TASK_PRIORITY = 6;
 
   enum Mode
@@ -108,6 +109,8 @@ private:
   unsigned long _lastInput = 0;
   const int InputTimeout = 60 * 1000;
   volatile bool _isSongPlaying = false;
+  volatile int _songIndex = -1;
+  volatile unsigned long _songTaskWatchdogMillis;
 
   bool _ack1Init = false;
   bool _ack1Display = false;
@@ -175,8 +178,9 @@ private:
   void updateBlinky();
   void changeMode(int mode = -1);
 
-  static void playSongTask(void *parameters);
+  void playSongTask(void *parameters); // has static wrapper
   void playNote(uint8_t noteIndex, uint8_t octave, uint8_t timing);
+  void startSong(int songIndex);
   void stopSong();
   void showMusicMenu();
 
@@ -205,6 +209,12 @@ private:
   void rotarySetup();
   void rotaryRead();
   void rotaryClear();
+
+  static void playSongTaskWrapper(void *parameters)
+  {
+    MusicMatrixTaskHandler *handler = static_cast<MusicMatrixTaskHandler *>(parameters);
+    handler->playSongTask(parameters);
+  }
 };
 
 bool MusicMatrixTaskHandler::createTask()
@@ -407,8 +417,7 @@ void MusicMatrixTaskHandler::updateMusicPlay()
       _rotaryNeoPixel.setPixelColor(0, color);
       _rotaryNeoPixel.show();
 
-      // show if not playing
-      if (_songTask == NULL)
+      if (!_isSongPlaying)
       {
         char timingUnitStr[5];
         snprintf(timingUnitStr, 5, "%4d", _timingUnitMs);
@@ -426,8 +435,7 @@ void MusicMatrixTaskHandler::updateMusicPlay()
       _octaveAdjust = newOctaveAdjust;
       log_i("Octave adjust updated: %d", _octaveAdjust);
 
-      // show if not playing
-      if (_songTask == NULL)
+      if (!_isSongPlaying)
       {
         char timingUnitStr[5];
         snprintf(timingUnitStr, 5, "%4d", _octaveAdjust);
@@ -438,36 +446,15 @@ void MusicMatrixTaskHandler::updateMusicPlay()
 
   if (!_isSongPlaying)
   {
-    // pressing neokey start playing song or error tone if no song
     if (_neoKeyJustPressedIndex >= 0)
     {
       if (_neoKeyJustPressedIndex < SongCount)
       {
-        log_i("Starting music");
-        alphaNumClear();
-        neoKeyClear();
-
-        if (_songTask != NULL)
-        {
-          vTaskDelete(_songTask);
-          _songTask = NULL;
-        }
-
-        _isSongPlaying = true; // songTask will set this to false when done
-
-        alphaNumShiftIn(SongName4Chars[_neoKeyJustPressedIndex]);
-        delay(500);
-        tuple<MusicMatrixTaskHandler *, const uint16_t *> taskParams = make_tuple(this, Songs[_neoKeyJustPressedIndex]);
-        xTaskCreatePinnedToCore(MusicMatrixTaskHandler::playSongTask, "MusicTask", 4096 * 20, &taskParams, 1, &_songTask, 1);
-
-        // synchronous play
-        // const uint16_t *song = Songs[_neoKeyJustPressedIndex];
-        // playMusic(song, [this](uint8_t noteIndex, uint8_t octave, uint8_t timing)
-        //           { playNote(noteIndex, octave, timing); });
-        // showMusicMenu();
+        startSong(_neoKeyJustPressedIndex);
       }
       else
       {
+        // error tone
         ack1Tone(1000);
         delay(100);
         ack1Tone(0);
@@ -544,7 +531,7 @@ void MusicMatrixTaskHandler::updateBlinky()
   // pressing neokey resets light delay
   if (_neoKeyJustPressedIndex >= 0)
   {
-    changeMode(Mode::PlaySong);
+    changeMode(Mode::Music);
     return;
   }
 
@@ -631,7 +618,7 @@ void MusicMatrixTaskHandler::changeMode(int desiredMode)
   }
 
   // spin-down mode stuff
-  if (_mode == Music && _isSongPlaying)
+  if (_isSongPlaying)
   {
     stopSong();
   }
@@ -750,15 +737,56 @@ void MusicMatrixTaskHandler::changeMode(int desiredMode)
 
 void MusicMatrixTaskHandler::playSongTask(void *parameters)
 {
-  tuple<MusicMatrixTaskHandler *, const uint16_t *> *taskParams = (tuple<MusicMatrixTaskHandler *, const uint16_t *> *)parameters;
-  MusicMatrixTaskHandler *taskHandler = get<0>(*taskParams);
-  const uint16_t *song = get<1>(*taskParams);
+  while (1)
+  {
+    if (!_isSongPlaying)
+    {
+      log_d("Waiting for song to play");
+      _songTaskWatchdogMillis = millis();
+      delay(10);
+      continue;
+    }
 
-  playMusic(song, [taskHandler](uint8_t noteIndex, uint8_t octave, uint8_t timing)
-            { taskHandler->playNote(noteIndex, octave, timing); });
-  taskHandler->_isSongPlaying = false;
+    if (_songIndex < 0 || _songIndex >= SongCount)
+    {
+      log_e("Invalid song index: %d", _songIndex);
+      showError("Invalid song");
+      _isSongPlaying = false;
+      continue;
+    }
 
-  vTaskDelete(NULL);
+    const uint16_t *song = Songs[_songIndex];
+    const char *songName = SongName4Chars[_songIndex];
+
+    log_i("Playing song %s", songName);
+    alphaNumClear();
+    neoKeyClear();
+    alphaNumShiftIn(SongName4Chars[_songIndex]);
+    delay(500);
+
+    if (!_isSongPlaying)
+    {
+      continue;
+    }
+
+    int noteIndex = 0;
+    uint16_t note = song[noteIndex++];
+    while (_isSongPlaying && note != END)
+    {
+      uint8_t octave = (note & OCTAVE_MASK) >> 12;
+      uint8_t index = (note & NOTE_MASK) >> 8;
+      uint8_t timing = note & TIMING_MASK;
+
+      playNote(index, octave, timing);
+
+      note = song[noteIndex++];
+      _songTaskWatchdogMillis = millis();
+    }
+
+    // signal end of song
+    showMusicMenu();
+    _isSongPlaying = false;
+  }
 }
 
 void MusicMatrixTaskHandler::playNote(uint8_t noteIndex, uint8_t octave, uint8_t timing)
@@ -811,22 +839,49 @@ void MusicMatrixTaskHandler::playNote(uint8_t noteIndex, uint8_t octave, uint8_t
   delay(_timingUnitMs >> 1);
 }
 
-void MusicMatrixTaskHandler::stopSong()
+void MusicMatrixTaskHandler::startSong(int songIndex)
 {
   if (_isSongPlaying)
   {
-    log_i("Stopping song");
-    vTaskDelete(_songTask);
-    _songTask = NULL;
-    ack1Tone(0);
-    _lastInput = millis(); // don't go to blinky mode right after long song
-    _isSongPlaying = false;
+    log_e("Song already playing");
+    return;
   }
-  else
+
+  if (_songTask != NULL && millis() - _songTaskWatchdogMillis > 1000)
   {
-    log_i("No song playing");
-    showError("NOT PLAYING");
+    log_e("Song task not responding, restarting");
+    showError("Restarting song task");
+    vTaskDelete(_songTask);
+    xTaskCreate(playSongTaskWrapper, "PlaySongTask", 4096 * 20, this, SONG_TASK_PRIORITY, &_songTask);
   }
+  else if (_songTask == NULL)
+  {
+    xTaskCreate(playSongTaskWrapper, "PlaySongTask", 4096 * 20, this, SONG_TASK_PRIORITY, &_songTask);
+  }
+
+  // pass song to task
+  log_i("Starting song");
+  _songIndex = songIndex;
+  _isSongPlaying = true;
+}
+
+void MusicMatrixTaskHandler::stopSong()
+{
+  if (!_isSongPlaying)
+  {
+    log_e("No song playing");
+    return;
+  }
+
+  if (_songTask != NULL && millis() - _songTaskWatchdogMillis > 1000)
+  {
+    log_w("Song task not responding");
+    showError("TASK NOT RUNNING");
+  }
+
+  log_i("Stopping song");
+  _isSongPlaying = false;
+  _songIndex = -1;
 }
 
 void MusicMatrixTaskHandler::showMusicMenu()
@@ -1014,7 +1069,7 @@ void MusicMatrixTaskHandler::ack1Wake()
   ack1Command(ACK1_LEDSCROLL_CMD, (uint8_t *)Ack1Message, strlen(Ack1Message));
 }
 
-void MusicMatrixTaskHandler::alphaNumSetup()
+void MusicMatrixTaskHandler::alphaNumSetup() 
 {
   if (_alphaNumInit)
   {

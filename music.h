@@ -48,22 +48,22 @@ int getNoteFrequency(int note, int octave)
     return frequency;
 }
 
-using PlayNoteCallback = std::function<void(uint8_t, uint8_t, uint8_t)>;
-void playMusic(const uint16_t *music, PlayNoteCallback playNote)
-{
-    int noteIndex = 0;
-    uint16_t note = music[noteIndex++];
-    while (note != END)
-    {
-        uint8_t octave = (note & OCTAVE_MASK) >> 12;
-        uint8_t index = (note & NOTE_MASK) >> 8;
-        uint8_t timing = note & TIMING_MASK;
+// using PlayNoteCallback = std::function<void(uint8_t, uint8_t, uint8_t)>;
+// void playMusic(const uint16_t *music, PlayNoteCallback playNote)
+// {
+//     int noteIndex = 0;
+//     uint16_t note = music[noteIndex++];
+//     while (note != END)
+//     {
+//         uint8_t octave = (note & OCTAVE_MASK) >> 12;
+//         uint8_t index = (note & NOTE_MASK) >> 8;
+//         uint8_t timing = note & TIMING_MASK;
 
-        playNote(index, octave, timing);
+//         playNote(index, octave, timing);
 
-        note = music[noteIndex++];
-    }
-}
+//         note = music[noteIndex++];
+//     }
+// }
 
 const uint16_t BigBen[] PROGMEM = {
     N(Bn, 5, 32), N(Gn, 5, 32), N(An, 5, 32), N(Dn, 5, 32),
