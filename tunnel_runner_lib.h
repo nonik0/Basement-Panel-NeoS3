@@ -2,19 +2,11 @@
 
 #include <Arduino.h>
 
-using namespace std;
+#include "coordinate.h"
 
 class TunnelRunner
 {
 private:
-    enum Direction
-    {
-        Left = 0, // increase x
-        Right = 1, // increase x
-        Up = 2, // decrease y
-        Down = 3 // increase y
-    };
-
     const int TunnelSpeed = 1;
     const int RunnerSpeed = 2;
     const int CrashDelay = 30;
@@ -23,10 +15,10 @@ private:
     int _width;
     int _height;
     bool **_tunnelWalls;
+    Direction _tunnelDirection;
     int _tunnelWidth;
     int _tunnelCooldown;
 
-    Direction _runnerDirection;
     int _runnerLocation;
     int _runnerCooldown;
     int _resetDelay;
@@ -42,8 +34,8 @@ private:
 public:
     TunnelRunner(
         int width, int height,
+        Direction tunnelDirection,
         uint32_t pathColor, uint32_t wallColor, uint32_t runnerColor,
-        Direction runnerDirection,
         std::function<void(int, int, uint32_t)> drawPixel);
 
     void init();
@@ -57,8 +49,8 @@ private:
 
 TunnelRunner::TunnelRunner(
     int width, int height,
+    Direction tunnelDirection,
     uint32_t pathColor, uint32_t wallColor, uint32_t runnerColor,
-    Direction runnerDirection,
     std::function<void(int, int, uint32_t)> drawPixel)
 {
     _width = width;
