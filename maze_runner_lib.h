@@ -20,7 +20,7 @@ private:
   const uint8_t SentrySpeed = 5;
   const int GoalDelay = 10; // delay cycles before generating new maze
   const int CatchDelay = 30;
-  const int ErrorDelay = 2^16;
+  const int ErrorDelay = 2 ^ 16;
 
   int _width;
   int _height;
@@ -48,7 +48,7 @@ private:
   bool _sentryActive;
   Location _sentryLoc = NullLocation;
   deque<Location> _sentryPath;
-  //Location _sentryExitKnownLoc = NullLocation;
+  // Location _sentryExitKnownLoc = NullLocation;
   uint8_t _sentryCooldown = 0;
 
   // function callbacks to draw pixels
@@ -91,14 +91,13 @@ private:
   deque<Location> findPathDfs(Location startLoc, Location sentryLoc, Location encLoc, int maxSearchDistance = -1);
   deque<Location> findLongestPathBfs(Location startLoc, Location sentryLoc = NullLocation, int maxSearchDistance = -1);
 
-  bool isAdjacent(Location a, Location b) { return abs(a.x - b.x) + abs(a.y - b.y) == 1; }
+  bool isAdjacent(Location a, Location b) { return isInMazeBounds(a) && isInMazeBounds(b) && abs(a.x - b.x) + abs(a.y - b.y) == 1; }
   bool isWall(int x, int y);
   bool isWall(Location loc);
   bool isInMazeBounds(int x, int y);
   bool isInMazeBounds(Location loc);
   int getAdjacentWallAndBorderCount(int x, int y);
   int getAdjacentWallAndBorderCount(Location loc);
-  void shuffleDirections(Direction *list, int size);
 };
 
 MazeRunner::MazeRunner(int width, int height, uint32_t pathColor, uint32_t wallColor, uint32_t runnerColor, uint32_t sentryColor,
@@ -174,7 +173,7 @@ bool MazeRunner::update()
       log_d("Runner reached exit");
       if (_setStatus)
         _setStatus(_runnerColor);
-      drawMaze(); // redraw runner on goal
+      drawMaze();                                  // redraw runner on goal
       _resetDelay = _sentryActive ? GoalDelay : 0; // no delay if no sentry
       return true;
     }
@@ -337,39 +336,30 @@ void MazeRunner::generateMaze()
     }
   }
 
-  // define starting point randomly if runner loc is not defined
-  Location start = NullLocation;
-  if (_exitLoc == NullLocation)
-  {
-    int edge = random(4);
-    int x = random(0, _width);
-    int y = random(_height);
-    start = {x, y};
-  }
-  else
-  {
-    start = _runnerLoc;
-  }
-  _mazeWalls[start.y][start.x] = false;
+  // always use runner location if set
+  Location startLoc = (_runnerLoc == NullLocation)
+                          ? Location{random(_width), random(_height)}
+                          : _runnerLoc;
+  _mazeWalls[startLoc.y][startLoc.x] = false;
 
   // create traversal stack with starting point
   stack<Location> path = stack<Location>();
-  path.push(start);
+  path.push(startLoc);
   int maxCycles = 1000;
 
   while (!path.empty() && maxCycles-- > 0)
   {
-    Location cur = path.top();
+    Location curLoc = path.top();
 
     // shuffle directions randomly
-    Direction randSteps[4] = {Left, Right, Up, Down};
-    shuffleDirections(randSteps, 4);
+    Direction stepDirections[] = {Left, Right, Up, Down};
+    shuffle(stepDirections, 4);
 
     // try to move in each direction, pop location if no path forward
     bool foundPath = false;
     for (int i = 0; i < 4; i++)
     {
-      Location nextLoc = {cur.x + randSteps[i].x, cur.y + randSteps[i].y};
+      Location nextLoc = curLoc + stepDirections[i];
       if (isInMazeBounds(nextLoc) && isWall(nextLoc) && getAdjacentWallAndBorderCount(nextLoc) >= 3)
       {
         _mazeWalls[nextLoc.y][nextLoc.x] = false;
@@ -385,27 +375,22 @@ void MazeRunner::generateMaze()
     }
   }
 
-  if (_sentryActive)
+  int wallsRemoved = 0;
+  maxCycles = 1000;
+  while (wallsRemoved < _mazeExtraWallsToRemove && maxCycles-- > 0)
   {
-    log_d("Removing extra walls for sentry");
-
-    int wallsRemoved = 0;
-    maxCycles = 1000;
-    while (wallsRemoved < _mazeExtraWallsToRemove && maxCycles-- > 0)
+    int x = random(_width);
+    int y = random(_height);
+    if (isWall(x, y) && getAdjacentWallAndBorderCount(x, y) >= 2)
     {
-      int x = random(_width);
-      int y = random(_height);
-      if (isWall(x, y) && getAdjacentWallAndBorderCount(x, y) >= 2)
-      {
-        _mazeWalls[y][x] = false;
-        wallsRemoved++;
-      }
+      _mazeWalls[y][x] = false;
+      wallsRemoved++;
     }
+  }
 
-    if (maxCycles <= 0)
-    {
-      log_e("Failed to remove extra walls");
-    }
+  if (maxCycles <= 0)
+  {
+    log_e("Failed to remove extra walls");
   }
 
   log_d("Maze generation complete");
@@ -544,13 +529,13 @@ deque<Location> MazeRunner::findPathDfs(Location startLoc, Location sentryLoc, L
     }
 
     // look in different directions randomly in case of loops for variety of potential paths
-    Direction randSteps[4] = {Left, Right, Up, Down};
-    shuffleDirections(randSteps, 4);
+    Direction stepDirections[4] = {Left, Right, Up, Down};
+    shuffle(stepDirections, 4);
 
-    for (Direction step : randSteps)
+    for (Direction stepDirection : stepDirections)
     {
-      Location nextLoc = {curLoc.x + step.x, curLoc.y + step.y};
-      if (isInMazeBounds(nextLoc) && !isWall(nextLoc) && (sentryLoc == NullLocation || (nextLoc != sentryLoc && !isAdjacent(nextLoc, sentryLoc))) && !locsVisited.count(nextLoc))
+      Location nextLoc = curLoc + stepDirection;
+      if (isInMazeBounds(nextLoc) && !isWall(nextLoc) && nextLoc != sentryLoc && !isAdjacent(nextLoc, sentryLoc) && !locsVisited.count(nextLoc))
       {
         locsToVisit.push({nextLoc, distFromStart + 1});
       }
@@ -586,13 +571,13 @@ deque<Location> MazeRunner::findLongestPathBfs(Location startLoc, Location sentr
     }
 
     // look in different directions randomly in case of loops for variety of potential paths
-    Direction randSteps[4] = {Left, Right, Up, Down};
-    shuffleDirections(randSteps, 4);
+    Direction stepDirection[4] = {Left, Right, Up, Down};
+    shuffle(stepDirection, 4);
 
-    for (Direction step : randSteps)
+    for (Direction stepDirection : stepDirection)
     {
-      Location nextLoc = {curLoc.x + step.x, curLoc.y + step.y};
-      if (isInMazeBounds(nextLoc) && !isWall(nextLoc) && (sentryLoc == NullLocation || (nextLoc != sentryLoc && !isAdjacent(nextLoc, sentryLoc))) && !locsVisited.count(nextLoc))
+      Location nextLoc = curLoc + stepDirection;
+      if (isInMazeBounds(nextLoc) && !isWall(nextLoc) && nextLoc != sentryLoc && !isAdjacent(nextLoc, sentryLoc) && !locsVisited.count(nextLoc))
       {
         pair<Location, int> nextLocAndDist = {nextLoc, distFromStart + 1};
         locsToVisit.push(nextLocAndDist);
@@ -662,15 +647,4 @@ int MazeRunner::getAdjacentWallAndBorderCount(int x, int y)
 int MazeRunner::getAdjacentWallAndBorderCount(Location loc)
 {
   return getAdjacentWallAndBorderCount(loc.x, loc.y);
-}
-
-void MazeRunner::shuffleDirections(Direction *list, int size)
-{
-  for (int i = 0; i < size; i++)
-  {
-    int index = random(size);
-    Direction temp = list[i];
-    list[i] = list[index];
-    list[index] = temp;
-  }
 }

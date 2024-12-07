@@ -47,3 +47,14 @@ const Direction Right = {1, 0};
 const Direction Up = {0, -1};
 const Direction Down = {0, 1};
 const Direction Directions[] = {Left, Right, Up, Down};
+
+void shuffle(Direction *list, int size)
+{
+  for (int i = 0; i < size; i++)
+  {
+    int index = random(size);
+    Direction temp = list[i];
+    list[i] = list[index];
+    list[index] = temp;
+  }
+}
