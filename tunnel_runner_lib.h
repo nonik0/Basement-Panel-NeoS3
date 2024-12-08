@@ -12,14 +12,20 @@ private:
     const int CrashDelay = 30;
     const int ErrorDelay = 100;
 
+    // constant
     int _width;
     int _height;
-    bool **_tunnelWalls;
+    int _tunnelVisibleLength;
+    int _tunnelMaxWidth;
     Direction _tunnelDirection;
+    bool _tunnelIsVertical;
+
+    bool **_tunnelWalls;
+    Location _tunnelLocation; // furthest from runner side, left or top empty space
     int _tunnelWidth;
     int _tunnelCooldown;
 
-    int _runnerLocation;
+    Location _runnerLocation;
     int _runnerCooldown;
     int _resetDelay;
 
@@ -45,6 +51,11 @@ private:
     bool advanceTunnel();
     bool moveRunner();
     void drawTunnel();
+
+    bool isInBounds(int x, int y);
+    bool isInBounds(Location loc);
+    bool isWall(int x, int y);
+    bool isWall(Location loc);
 };
 
 TunnelRunner::TunnelRunner(
@@ -55,16 +66,27 @@ TunnelRunner::TunnelRunner(
 {
     _width = width;
     _height = height;
+    _tunnelDirection = tunnelDirection;
+    _tunnelIsVertical = tunnelDirection.x == 0;
+    _tunnelMaxWidth = _tunnelIsVertical ? _width : _height;
+    _tunnelVisibleLength = _tunnelIsVertical ? _height : _width;
     _pathColor = pathColor;
     _wallColor = wallColor;
     _runnerColor = runnerColor;
     _drawPixel = drawPixel;
 
-    _tunnelWalls = new bool *[_height];
+    _tunnelWalls = new bool *[_width];
     for (int i = 0; i < _height; i++)
     {
-        _tunnelWalls[i] = new bool[_width];
+        _tunnelWalls[i] = new bool[_height];
     }
+
+    log_d("width: %d", _width);
+    log_d("height: %d", _height);
+    log_d("tunnelDirection: %d,%d", _tunnelDirection.x, _tunnelDirection.y);
+    log_d("tunnelIsVertical: %d", _tunnelIsVertical);
+    log_d("tunnelMaxWidth: %d", _tunnelMaxWidth);
+    log_d("tunnelVisibleLength: %d", _tunnelVisibleLength);
 }
 
 void TunnelRunner::init()
@@ -72,85 +94,213 @@ void TunnelRunner::init()
     log_d("Initializing tunnel");
 
     // fill tunnel with walls (true)
-    for (int y = 0; y < _height; y++)
+    for (int x = 0; x < _width; x++)
     {
-        for (int x = 0; x < _width; x++)
+        for (int y = 0; y < _height; y++)
         {
-            _tunnelWalls[y][x] = true;
+            _tunnelWalls[x][y] = true;
         }
     }
 
-    // clear path (false)
-    for (int y = 0; y < _height; y++)
+    _tunnelWidth = _tunnelMaxWidth - 2;
+
+    if (_tunnelDirection == Left)
     {
-        for (int x = 0; x < _width; x++)
-        {
-            _tunnelWalls[y][x] = false;
-        }
+        _runnerLocation = {1, _height / 2}; // runner starts at middle-left
+        _tunnelLocation = {0, 1};           // tunnel moves to left, so start at top-left
+    }
+    else if (_tunnelDirection == Right)
+    {
+        _runnerLocation = {_width - 2, _height / 2}; // runner starts at middle-right
+        _tunnelLocation = {_width - 1, 1};           // tunnel moves to right, so start at top-right
+    }
+    else if (_tunnelDirection == Up)
+    {
+        _runnerLocation = {_width / 2, 1}; // runner starts at middle-top
+        _tunnelLocation = {1, 0};          // tunnel moves up, so start at top-left
+    }
+    else if (_tunnelDirection == Down)
+    {
+        _runnerLocation = {_width / 2, _height - 2}; // runner starts at middle-bottom
+        _tunnelLocation = {1, _height - 1};          // tunnel moves down, so start at bottom-left
     }
 
-    // draw walls
-    for (int y = 0; y < _height; y++)
+    // clear straight path to far side
+    for (int i = 0; i < _tunnelVisibleLength; i++)
     {
-        for (int x = 0; x < _width; x++)
+        for (int j = 0; j < _tunnelWidth; j++)
         {
-            _drawPixel(x, y, _tunnelWalls[y][x] ? _wallColor : _pathColor);
+            if (_tunnelIsVertical)
+            {
+                _tunnelWalls[_tunnelLocation.x + j][_tunnelLocation.y] = false;
+            }
+            else
+            {
+                _tunnelWalls[_tunnelLocation.x][_tunnelLocation.y + j] = false;
+            }
         }
+
+        _tunnelLocation -= _tunnelDirection; // moving in opposite direction
     }
+
+    _tunnelLocation += _tunnelDirection; // move back to edge
+    log_d("Runner location: (%d,%d)", _runnerLocation.x, _runnerLocation.y);
+    log_d("Tunnel location: (%d,%d)", _tunnelLocation.x, _tunnelLocation.y);
 }
 
 bool TunnelRunner::update()
 {
-  if (_resetDelay > 0)
-  {
-    _resetDelay--;
-    if (_resetDelay <= 0)
+    try
     {
-      init();
-      drawTunnel();
-      return true;
+        log_d("Updating tunnel");
+
+        if (_resetDelay > 0)
+        {
+            _resetDelay--;
+            if (_resetDelay <= 0)
+            {
+                init();
+                drawTunnel();
+                return true;
+            }
+            return false;
+        }
+
+        bool update = false;
+
+        update |= moveRunner();
+        update |= advanceTunnel();
+
+        if (isWall(_runnerLocation))
+        {
+            log_d("Runner crashed");
+            drawTunnel();
+            _resetDelay = CrashDelay;
+            return true;
+        }
+
+        if (update)
+        {
+            drawTunnel();
+        }
+
+        return update;
     }
-    return false;
-  }
-
-    bool update = false;
-
-    update |= moveRunner();
-    update |= advanceTunnel();
-    if (collision) {
-        _resetDelay = CrashDelay;
-        return true;
+    catch (const std::exception &e)
+    {
+        log_e("Error in tunnel runner update: %s", e.what());
+        delay(5000);
+        _resetDelay = ErrorDelay;
+        return false;
     }
-
-    return update;
 }
 
 bool TunnelRunner::advanceTunnel()
 {
-    bool update = false;
 
-    // shift tunnel down
-    for (int y = _height - 1; y > 0; y--)
+    if (_tunnelCooldown > 0)
     {
-        for (int x = 0; x < _width; x++)
+        _tunnelCooldown--;
+        return false;
+    }
+    _tunnelCooldown = TunnelSpeed;
+
+    log_d("Advancing tunnel");
+
+    // get location at left of vertical tunnel or top of horiz tunnel at near/runner side
+    Location curLoc;
+    if (_tunnelDirection == Left)
+    {
+        curLoc = {0, 0}; // tunnel moves to left, so start at top-left
+    }
+    else if (_tunnelDirection == Right)
+    {
+        curLoc = {_width - 1, 0}; // tunnel moves to right, so start at top-right
+    }
+    else if (_tunnelDirection == Up)
+    {
+        curLoc = {0, 0}; // tunnel moves up, so start at top-left
+    }
+    else if (_tunnelDirection == Down)
+    {
+        curLoc = {0, _height - 1}; // tunnel moves down, so start at bottom-left
+    }
+
+    log_d("Starting wall shift location: (%d,%d)", curLoc.x, curLoc.y);
+
+    // move all walls in direction of tunnel
+    for (int i = 0; i < _tunnelVisibleLength - 1; i++)
+    {
+        for (int j = 0; j < _tunnelWidth; j++)
         {
-            _tunnelWalls[y][x] = _tunnelWalls[y - 1][x];
-            _drawPixel(x, y, _tunnelWalls[y][x] ? _wallColor : _pathColor);
+            // copy wall from opposite direction of tunnel movement
+            if (_tunnelIsVertical)
+            {
+                _tunnelWalls[curLoc.x + j][curLoc.y] = _tunnelWalls[curLoc.x + j][curLoc.y - _tunnelDirection.y];
+            }
+            else
+            {
+                _tunnelWalls[curLoc.x][curLoc.y + j] = _tunnelWalls[curLoc.x - _tunnelDirection.x][curLoc.y + j];
+            }
+        }
+
+        curLoc -= _tunnelDirection;
+    }
+
+    // randomy change tunnel width
+    // if (random() % 2 == 0)
+    // {
+    //     int newWidth = _tunnelWidth + (random() % 3 - 1);
+    //     if (newWidth > 0 && newWidth < _tunnelMaxWidth)
+    //     {
+    //         _tunnelWidth = newWidth;
+    //     }
+    // }
+
+    // randomly change tunnel location (shift center of tunnel)
+    if (random() % 2 == 0)
+    {
+        log_d("Trying to shift tunnel location");
+
+        Direction shiftDirection = _tunnelIsVertical
+                                       ? (random() % 2 == 0 ? Left : Right)
+                                       : (random() % 2 == 0 ? Up : Down);
+        Location tunnelLocationOppositeSide = _tunnelIsVertical
+                                                  ? _tunnelLocation + _tunnelWidth * Right
+                                                  : _tunnelLocation + _tunnelWidth * Down;
+        Location newLoc = _tunnelLocation + shiftDirection;
+        Location newLocOpposite = tunnelLocationOppositeSide + shiftDirection;
+        if (isInBounds(newLoc) && isInBounds(newLocOpposite))
+        {
+            log_d("Shifted tunnel location to (%d,%d)", _tunnelLocation.x, _tunnelLocation.y);
+            _tunnelLocation = newLoc;
         }
     }
 
-    // generate new row
-    for (int x = 0; x < _width; x++)
+    // TODO maybe: maybe sure tunnel location is at correct edge based on tunnel direction
+
+    // now generate new walls for tunnel at far end
+    log_d("Generating new tunnel walls at far end at tunnel location edge (%d,%d)", _tunnelLocation.x, _tunnelLocation.y);
+    for (int i = 0; i < _tunnelWidth; i++)
     {
-        _tunnelWalls[0][x] = random(2) == 0;
-        _drawPixel(x, 0, _tunnelWalls[0][x] ? _wallColor : _pathColor);
+        if (_tunnelIsVertical)
+        {
+            _tunnelWalls[i][_tunnelLocation.y] = i < _tunnelLocation.x || i >= _tunnelLocation.x + _tunnelWidth;
+        }
+        else
+        {
+            _tunnelWalls[_tunnelLocation.x][i] = i < _tunnelLocation.y || i >= _tunnelLocation.y + _tunnelWidth;
+        }
     }
 
-    return update;
+    log_d("Done. Tunnel location: (%d,%d)", _tunnelLocation.x, _tunnelLocation.y);
+    _tunnelCooldown = TunnelSpeed;
+    return true;
 }
 
 bool TunnelRunner::moveRunner()
 {
+
     bool update = false;
 
     // move runner
@@ -159,65 +309,46 @@ bool TunnelRunner::moveRunner()
         _runnerCooldown--;
         return false;
     }
+    _runnerCooldown = RunnerSpeed;
 
-    // Location prevRunnerLoc = _runnerLoc;
-    // switch (_runnerDirection)
-    // {
-    // case Left:
-    //     if (_runnerLoc.x > 0)
-    //     {
-    //         _runnerLoc.x--;
-    //     }
-    //     break;
-    // case Right:
-    //     if (_runnerLoc.x < _width - 1)
-    //     {
-    //         _runnerLoc.x++;
-    //     }
-    //     break;
-    // case Up:
-    //     if (_runnerLoc.y > 0)
-    //     {
-    //         _runnerLoc.y--;
-    //     }
-    //     break;
-    // case Down:
-    //     if (_runnerLoc.y < _height - 1)
-    //     {
-    //         _runnerLoc.y++;
-    //     }
-    //     break;
-    // }
-
-    // if (_tunnelWalls[_runnerLoc.y][_runnerLoc.x])
-    // {
-    //     _runnerLoc = prevRunnerLoc;
-    //     _runnerCooldown = CrashDelay;
-    //     _setStatus(RED);
-    //     return false;
-    // }
-
-    // if (_runnerLoc == _exitLoc)
-    // {
-    //     _runnerLoc = prevRunnerLoc;
-    //     _runnerCooldown = ErrorDelay;
-    //     _setStatus(PURPLE);
-    //     return false;
-    // }
-
-    // _drawPixel(prevRunnerLoc.x, prevRunnerLoc.y, _pathColor);
-    // _drawPixel(_runnerLoc.x, _runnerLoc.y, _runnerColor);
+    log_d("Moving runner");
+    // runner always tries to center self in tunnel
+    // TODO
 
     return true;
 }
 
 void TunnelRunner::drawTunnel()
 {
-    for (int y = 0; y < _height; y++)
+    log_d("Drawing tunnel");
+
+    for (int x = 0; x < _width; x++)
     {
-        for (int x = 0; x < _width; x++)
+        for (int y = 0; y < _height; y++)
         {
-            _drawPixel(x, y, _tunnelWalls[y][x] ? _wallColor : _pathColor);
+            _drawPixel(x, y, _tunnelWalls[x][y] ? _wallColor : _pathColor);
         }
     }
+
+    _drawPixel(_runnerLocation.x, _runnerLocation.y, _runnerColor);
+}
+
+bool TunnelRunner::isInBounds(int x, int y)
+{
+    return x >= 0 && x < _width && y >= 0 && y < _height;
+}
+
+bool TunnelRunner::isInBounds(Location loc)
+{
+    return isInBounds(loc.x, loc.y);
+}
+
+bool TunnelRunner::isWall(int x, int y)
+{
+    return _tunnelWalls[x][y];
+}
+
+bool TunnelRunner::isWall(Location loc)
+{
+    return isWall(loc.x, loc.y);
 }

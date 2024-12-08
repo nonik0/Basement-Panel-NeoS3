@@ -10,7 +10,7 @@ class TunnelRunner8x16TaskHandler : public DisplayTaskHandler
 private:
     static const uint8_t I2C_ADDR = 0x72;
     static const uint8_t TASK_PRIORITY = 5;
-    const int DELAY_MS = 60;
+    const int TUNNEL_DELAY_MS = 6000;
 
     Adafruit_8x16minimatrix _matrix = Adafruit_8x16minimatrix();
     TunnelRunner *_tunnelRunner;
@@ -43,18 +43,17 @@ bool TunnelRunner8x16TaskHandler::createTask()
     _matrix.setBrightness(5);
     _matrix.setTextSize(2);
 
-    // _tunnelRunner = new TunnelRunner(
-    //     WIDTH,
-    //     HEIGHT,
-    //     LED_OFF,  // off
-    //     LED_ON, // wall
-    //     LED_ON, // runner
-    //     [this](int x, int y, uint32_t c)
-    //     { _matrix.setPixelColor(y * WIDTH + x, c); },
-    //     [this](uint32_t c)
-    //     { _rgbLed.setPixelColor(0, c); if (c == PURPLE) { digitalWrite(BLUE_LED_PIN, true); } });
+    _tunnelRunner = new TunnelRunner(
+        _matrix.width(),
+        _matrix.height(),
+        Down,
+        LED_OFF, // path
+        LED_ON,  // wall
+        LED_ON,  // runner
+        [this](int x, int y, uint32_t c)
+        { _matrix.drawPixel(x, y, c); });
 
-    // _tunnelRunner->init();
+    _tunnelRunner->init();
 
     log_i("Starting TunnelRunner8x16Task");
     xTaskCreatePinnedToCore(taskWrapper, "TunnelRunner8x16Task", 4096 * 4, this, 2, &_taskHandle, 0); // other Arduino tasks are on Core 1
@@ -67,18 +66,22 @@ void TunnelRunner8x16TaskHandler::task(void *parameters)
 {
     while (1)
     {
+        log_d("TunnelRunner8x16Task running");
+
         if (!_display)
         {
+            log_d("Tunnel not displayed");
             _matrix.clear();
             _matrix.writeDisplay();
-            delay(DELAY_MS);
+            delay(TUNNEL_DELAY_MS);
             continue;
         }
 
         if (_tunnelRunner->update())
         {
+            log_d("Tunnel updated");
             _matrix.writeDisplay();
         }
-        delay(DELAY_MS);
+        delay(TUNNEL_DELAY_MS);
     }
 }

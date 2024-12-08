@@ -10,6 +10,32 @@ struct Coordinate
   int y;
 };
 
+// negation
+Coordinate operator-(const Coordinate &coord)
+{
+  return {-coord.x, -coord.y};
+}
+
+Coordinate operator+(const Coordinate &lhs, const Coordinate &rhs)
+{
+  return {lhs.x + rhs.x, lhs.y + rhs.y};
+}
+
+Coordinate operator-(const Coordinate &lhs, const Coordinate &rhs)
+{
+  return {lhs.x - rhs.x, lhs.y - rhs.y};
+}
+
+Coordinate operator*(const Coordinate &lhs, const Coordinate &rhs)
+{
+  return {lhs.x * rhs.x, lhs.y * rhs.y};
+}
+
+Coordinate operator*(const int &lhs, const Coordinate &rhs)
+{
+  return {rhs.x * lhs, rhs.y * lhs};
+}
+
 bool operator==(const Coordinate &lhs, const Coordinate &rhs)
 {
   return lhs.x == rhs.x && lhs.y == rhs.y;
@@ -20,9 +46,25 @@ bool operator!=(const Coordinate &lhs, const Coordinate &rhs)
   return !(lhs == rhs);
 }
 
-Coordinate operator+(const Coordinate &lhs, const Coordinate &rhs)
+Coordinate operator+=(Coordinate &lhs, const Coordinate &rhs)
 {
-  return {lhs.x + rhs.x, lhs.y + rhs.y};
+  lhs.x += rhs.x;
+  lhs.y += rhs.y;
+  return lhs;
+}
+
+Coordinate operator-=(Coordinate &lhs, const Coordinate &rhs)
+{
+  lhs.x -= rhs.x;
+  lhs.y -= rhs.y;
+  return lhs;
+}
+
+Coordinate operator*=(Coordinate &lhs, const Coordinate &rhs)
+{
+  lhs.x *= rhs.x;
+  lhs.y *= rhs.y;
+  return lhs;
 }
 
 namespace std
@@ -38,7 +80,7 @@ namespace std
 }
 
 using Location = Coordinate;
-using Direction = Coordinate;
+using Direction = Coordinate; // technically should enforce to length 1 vectors
 
 const Location NullLocation = Location{-1, -1};
 
@@ -57,4 +99,14 @@ void shuffle(Direction *list, int size)
     list[i] = list[index];
     list[index] = temp;
   }
+}
+
+bool upOrDown(Direction dir)
+{
+  return dir == Up || dir == Down;
+}
+
+bool leftOrRight(Direction dir)
+{
+  return dir == Left || dir == Right;
 }

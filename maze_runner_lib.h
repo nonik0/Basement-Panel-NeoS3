@@ -91,11 +91,11 @@ private:
   deque<Location> findPathDfs(Location startLoc, Location sentryLoc, Location encLoc, int maxSearchDistance = -1);
   deque<Location> findLongestPathBfs(Location startLoc, Location sentryLoc = NullLocation, int maxSearchDistance = -1);
 
-  bool isAdjacent(Location a, Location b) { return isInMazeBounds(a) && isInMazeBounds(b) && abs(a.x - b.x) + abs(a.y - b.y) == 1; }
+  bool isAdjacent(Location a, Location b) { return isInBounds(a) && isInBounds(b) && abs(a.x - b.x) + abs(a.y - b.y) == 1; }
   bool isWall(int x, int y);
   bool isWall(Location loc);
-  bool isInMazeBounds(int x, int y);
-  bool isInMazeBounds(Location loc);
+  bool isInBounds(int x, int y);
+  bool isInBounds(Location loc);
   int getAdjacentWallAndBorderCount(int x, int y);
   int getAdjacentWallAndBorderCount(Location loc);
 };
@@ -360,7 +360,7 @@ void MazeRunner::generateMaze()
     for (int i = 0; i < 4; i++)
     {
       Location nextLoc = curLoc + stepDirections[i];
-      if (isInMazeBounds(nextLoc) && isWall(nextLoc) && getAdjacentWallAndBorderCount(nextLoc) >= 3)
+      if (isInBounds(nextLoc) && isWall(nextLoc) && getAdjacentWallAndBorderCount(nextLoc) >= 3)
       {
         _mazeWalls[nextLoc.y][nextLoc.x] = false;
         path.push(nextLoc);
@@ -535,7 +535,7 @@ deque<Location> MazeRunner::findPathDfs(Location startLoc, Location sentryLoc, L
     for (Direction stepDirection : stepDirections)
     {
       Location nextLoc = curLoc + stepDirection;
-      if (isInMazeBounds(nextLoc) && !isWall(nextLoc) && nextLoc != sentryLoc && !isAdjacent(nextLoc, sentryLoc) && !locsVisited.count(nextLoc))
+      if (isInBounds(nextLoc) && !isWall(nextLoc) && nextLoc != sentryLoc && !isAdjacent(nextLoc, sentryLoc) && !locsVisited.count(nextLoc))
       {
         locsToVisit.push({nextLoc, distFromStart + 1});
       }
@@ -577,7 +577,7 @@ deque<Location> MazeRunner::findLongestPathBfs(Location startLoc, Location sentr
     for (Direction stepDirection : stepDirection)
     {
       Location nextLoc = curLoc + stepDirection;
-      if (isInMazeBounds(nextLoc) && !isWall(nextLoc) && nextLoc != sentryLoc && !isAdjacent(nextLoc, sentryLoc) && !locsVisited.count(nextLoc))
+      if (isInBounds(nextLoc) && !isWall(nextLoc) && nextLoc != sentryLoc && !isAdjacent(nextLoc, sentryLoc) && !locsVisited.count(nextLoc))
       {
         pair<Location, int> nextLocAndDist = {nextLoc, distFromStart + 1};
         locsToVisit.push(nextLocAndDist);
@@ -619,14 +619,14 @@ bool MazeRunner::isWall(Location loc)
   return isWall(loc.x, loc.y);
 }
 
-bool MazeRunner::isInMazeBounds(int x, int y)
+bool MazeRunner::isInBounds(int x, int y)
 {
   return x >= 0 && x < _width && y >= 0 && y < _height;
 }
 
-bool MazeRunner::isInMazeBounds(Location loc)
+bool MazeRunner::isInBounds(Location loc)
 {
-  return isInMazeBounds(loc.x, loc.y);
+  return isInBounds(loc.x, loc.y);
 }
 
 int MazeRunner::getAdjacentWallAndBorderCount(int x, int y)
