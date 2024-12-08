@@ -93,6 +93,10 @@ void TunnelRunner::init()
 {
     log_d("Initializing tunnel");
 
+    _resetDelay = -1;
+    _runnerCooldown = 0;
+    _tunnelCooldown = 0;
+
     // fill tunnel with walls (true)
     for (int x = 0; x < _width; x++)
     {
@@ -152,8 +156,6 @@ bool TunnelRunner::update()
 {
     try
     {
-        log_d("Updating tunnel");
-
         if (_resetDelay > 0)
         {
             _resetDelay--;
@@ -189,6 +191,7 @@ bool TunnelRunner::update()
     catch (const std::exception &e)
     {
         log_e("Error in tunnel runner update: %s", e.what());
+        Serial.flush();
         delay(5000);
         _resetDelay = ErrorDelay;
         return false;
@@ -197,15 +200,12 @@ bool TunnelRunner::update()
 
 bool TunnelRunner::advanceTunnel()
 {
-
     if (_tunnelCooldown > 0)
     {
         _tunnelCooldown--;
         return false;
     }
     _tunnelCooldown = TunnelSpeed;
-
-    log_d("Advancing tunnel");
 
     // get location at left of vertical tunnel or top of horiz tunnel at near/runner side
     Location curLoc;
@@ -226,21 +226,21 @@ bool TunnelRunner::advanceTunnel()
         curLoc = {0, _height - 1}; // tunnel moves down, so start at bottom-left
     }
 
-    log_d("Starting wall shift location: (%d,%d)", curLoc.x, curLoc.y);
-
     // move all walls in direction of tunnel
     for (int i = 0; i < _tunnelVisibleLength - 1; i++)
     {
-        for (int j = 0; j < _tunnelWidth; j++)
+        for (int j = 0; j < _tunnelMaxWidth; j++)
         {
             // copy wall from opposite direction of tunnel movement
             if (_tunnelIsVertical)
             {
                 _tunnelWalls[curLoc.x + j][curLoc.y] = _tunnelWalls[curLoc.x + j][curLoc.y - _tunnelDirection.y];
+                //log_d("Moved wall from (%d,%d) to (%d,%d)", curLoc.x + j, curLoc.y - _tunnelDirection.y, curLoc.x + j, curLoc.y);
             }
             else
             {
                 _tunnelWalls[curLoc.x][curLoc.y + j] = _tunnelWalls[curLoc.x - _tunnelDirection.x][curLoc.y + j];
+                //log_d("Moved wall from (%d,%d) to (%d,%d)", curLoc.x - _tunnelDirection.x, curLoc.y + j, curLoc.x, curLoc.y + j);
             }
         }
 
@@ -260,8 +260,6 @@ bool TunnelRunner::advanceTunnel()
     // randomly change tunnel location (shift center of tunnel)
     if (random() % 2 == 0)
     {
-        log_d("Trying to shift tunnel location");
-
         Direction shiftDirection = _tunnelIsVertical
                                        ? (random() % 2 == 0 ? Left : Right)
                                        : (random() % 2 == 0 ? Up : Down);
@@ -280,8 +278,7 @@ bool TunnelRunner::advanceTunnel()
     // TODO maybe: maybe sure tunnel location is at correct edge based on tunnel direction
 
     // now generate new walls for tunnel at far end
-    log_d("Generating new tunnel walls at far end at tunnel location edge (%d,%d)", _tunnelLocation.x, _tunnelLocation.y);
-    for (int i = 0; i < _tunnelWidth; i++)
+    for (int i = 0; i < _tunnelMaxWidth; i++)
     {
         if (_tunnelIsVertical)
         {
@@ -293,14 +290,12 @@ bool TunnelRunner::advanceTunnel()
         }
     }
 
-    log_d("Done. Tunnel location: (%d,%d)", _tunnelLocation.x, _tunnelLocation.y);
     _tunnelCooldown = TunnelSpeed;
     return true;
 }
 
 bool TunnelRunner::moveRunner()
 {
-
     bool update = false;
 
     // move runner
@@ -311,7 +306,6 @@ bool TunnelRunner::moveRunner()
     }
     _runnerCooldown = RunnerSpeed;
 
-    log_d("Moving runner");
     // runner always tries to center self in tunnel
     // TODO
 
@@ -320,8 +314,6 @@ bool TunnelRunner::moveRunner()
 
 void TunnelRunner::drawTunnel()
 {
-    log_d("Drawing tunnel");
-
     for (int x = 0; x < _width; x++)
     {
         for (int y = 0; y < _height; y++)

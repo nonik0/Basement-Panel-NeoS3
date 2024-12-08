@@ -10,7 +10,7 @@ class TunnelRunner8x16TaskHandler : public DisplayTaskHandler
 private:
     static const uint8_t I2C_ADDR = 0x72;
     static const uint8_t TASK_PRIORITY = 5;
-    const int TUNNEL_DELAY_MS = 6000;
+    const int TUNNEL_DELAY_MS = 1000;
 
     Adafruit_8x16minimatrix _matrix = Adafruit_8x16minimatrix();
     TunnelRunner *_tunnelRunner;
@@ -55,7 +55,6 @@ bool TunnelRunner8x16TaskHandler::createTask()
 
     _tunnelRunner->init();
 
-    log_i("Starting TunnelRunner8x16Task");
     xTaskCreatePinnedToCore(taskWrapper, "TunnelRunner8x16Task", 4096 * 4, this, 2, &_taskHandle, 0); // other Arduino tasks are on Core 1
 
     log_i("TunnelRunner8x16 setup complete");
@@ -64,13 +63,13 @@ bool TunnelRunner8x16TaskHandler::createTask()
 
 void TunnelRunner8x16TaskHandler::task(void *parameters)
 {
+    delay(10);
+    log_i("Starting TunnelRunner8x16Task");
+
     while (1)
     {
-        log_d("TunnelRunner8x16Task running");
-
         if (!_display)
         {
-            log_d("Tunnel not displayed");
             _matrix.clear();
             _matrix.writeDisplay();
             delay(TUNNEL_DELAY_MS);
@@ -79,7 +78,6 @@ void TunnelRunner8x16TaskHandler::task(void *parameters)
 
         if (_tunnelRunner->update())
         {
-            log_d("Tunnel updated");
             _matrix.writeDisplay();
         }
         delay(TUNNEL_DELAY_MS);
