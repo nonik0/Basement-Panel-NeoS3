@@ -11,6 +11,7 @@ private:
     const int RunnerSpeed = 2;
     const int CrashDelay = 30;
     const int ErrorDelay = 100;
+    const int TunnelMinWidth = 2;
 
     // constant
     int _width;
@@ -24,6 +25,7 @@ private:
     Location _tunnelLocation; // furthest from runner side, left or top empty space
     int _tunnelWidth;
     int _tunnelCooldown;
+    bool _tunnelShrinking;
 
     Location _runnerLocation;
     int _runnerCooldown;
@@ -96,6 +98,7 @@ void TunnelRunner::init()
     _resetDelay = -1;
     _runnerCooldown = 0;
     _tunnelCooldown = 0;
+    _tunnelShrinking = true;
 
     // fill tunnel with walls (true)
     for (int x = 0; x < _width; x++)
@@ -235,47 +238,51 @@ bool TunnelRunner::advanceTunnel()
             if (_tunnelIsVertical)
             {
                 _tunnelWalls[curLoc.x + j][curLoc.y] = _tunnelWalls[curLoc.x + j][curLoc.y - _tunnelDirection.y];
-                //log_d("Moved wall from (%d,%d) to (%d,%d)", curLoc.x + j, curLoc.y - _tunnelDirection.y, curLoc.x + j, curLoc.y);
             }
             else
             {
                 _tunnelWalls[curLoc.x][curLoc.y + j] = _tunnelWalls[curLoc.x - _tunnelDirection.x][curLoc.y + j];
-                //log_d("Moved wall from (%d,%d) to (%d,%d)", curLoc.x - _tunnelDirection.x, curLoc.y + j, curLoc.x, curLoc.y + j);
             }
         }
 
         curLoc -= _tunnelDirection;
     }
 
-    // randomy change tunnel width
-    // if (random() % 2 == 0)
-    // {
-    //     int newWidth = _tunnelWidth + (random() % 3 - 1);
-    //     if (newWidth > 0 && newWidth < _tunnelMaxWidth)
-    //     {
-    //         _tunnelWidth = newWidth;
-    //     }
-    // }
+    // randomly change tunnel width
+    if (random() % 1000 == 0)
+    {
+        // expand and contract tunnel width
+        _tunnelWidth += _tunnelShrinking ? -1 : 1;
+        if (_tunnelWidth == TunnelMinWidth || _tunnelWidth == _tunnelMaxWidth)
+        {
+            _tunnelShrinking = !_tunnelShrinking;
+        }
+        log_i("Changed tunnel width to %d", _tunnelWidth);
 
+        // when tunnel shrinks decide which direction it shifts randomly
+        if (random() % 2 == 0)
+        {
+            _tunnelLocation = _tunnelIsVertical
+                                  ? _tunnelLocation + Right
+                                  : _tunnelLocation + Down;
+        }
+    }
     // randomly change tunnel location (shift center of tunnel)
-    if (random() % 2 == 0)
+    else if (random() % 10 >= 5)
     {
         Direction shiftDirection = _tunnelIsVertical
                                        ? (random() % 2 == 0 ? Left : Right)
                                        : (random() % 2 == 0 ? Up : Down);
         Location tunnelLocationOppositeSide = _tunnelIsVertical
-                                                  ? _tunnelLocation + _tunnelWidth * Right
-                                                  : _tunnelLocation + _tunnelWidth * Down;
+                                                  ? _tunnelLocation + (_tunnelWidth - 1) * Right
+                                                  : _tunnelLocation + (_tunnelWidth - 1) * Down;
         Location newLoc = _tunnelLocation + shiftDirection;
         Location newLocOpposite = tunnelLocationOppositeSide + shiftDirection;
         if (isInBounds(newLoc) && isInBounds(newLocOpposite))
         {
-            log_d("Shifted tunnel location to (%d,%d)", _tunnelLocation.x, _tunnelLocation.y);
             _tunnelLocation = newLoc;
         }
     }
-
-    // TODO maybe: maybe sure tunnel location is at correct edge based on tunnel direction
 
     // now generate new walls for tunnel at far end
     for (int i = 0; i < _tunnelMaxWidth; i++)
@@ -304,10 +311,53 @@ bool TunnelRunner::moveRunner()
         _runnerCooldown--;
         return false;
     }
-    _runnerCooldown = RunnerSpeed;
 
     // runner always tries to center self in tunnel
-    // TODO
+
+    // get average of tunnel width for next 3 sections ahead of runner
+    int totalWidth = 0;
+    int count = 0;
+    for (int i = 0; i < 3; i++)
+    {
+        Location lookAheadLoc = _runnerLocation - (i + 1) * _tunnelDirection;
+
+        for (int j = 0; j < _tunnelMaxWidth; j++)
+        {
+            if (_tunnelIsVertical)
+            {
+                if (!isWall(j, lookAheadLoc.y))
+                {
+                    totalWidth += j;
+                    count++;
+                }
+            }
+            else
+            {
+                if (!isWall(lookAheadLoc.x, j))
+                {
+                    totalWidth += j;
+                    count++;
+                }
+            }
+        }
+    }
+
+    int lookAheadMiddleLoc = round((float)totalWidth / (float)count);
+    int distToMiddle = lookAheadMiddleLoc - _runnerLocation.x;
+    if (distToMiddle != 0)
+    {
+        Location newLoc = _runnerLocation + (_tunnelIsVertical
+                                                 ? (distToMiddle > 0 ? Right : Left)
+                                                 : (distToMiddle > 0 ? Down : Up));
+
+        if (isInBounds(newLoc) && !isWall(newLoc))
+        {
+            // only reset cooldown if runner actually moved
+            _runnerCooldown = RunnerSpeed;
+            _runnerLocation = newLoc;
+            update = true;
+        }
+    }
 
     return true;
 }

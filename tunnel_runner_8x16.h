@@ -10,7 +10,7 @@ class TunnelRunner8x16TaskHandler : public DisplayTaskHandler
 private:
     static const uint8_t I2C_ADDR = 0x72;
     static const uint8_t TASK_PRIORITY = 5;
-    const int TUNNEL_DELAY_MS = 1000;
+    const int TUNNEL_DELAY_MS = 20;
 
     Adafruit_8x16minimatrix _matrix = Adafruit_8x16minimatrix();
     TunnelRunner *_tunnelRunner;
