@@ -32,8 +32,10 @@
 #define SS_NEOKEY1_ADDR 0x30
 #define SS_NEOKEY2_ADDR 0x31
 #define SS_NEOKEY3_ADDR 0x32
+#define SS_NEOKEY4_ADDR 0x33
+#define SS_NEOKEY5_ADDR 0x34
 #define SS_NEOKEY_KEY_COUNT 4
-#define SS_NEOKEY_COUNT 3 * SS_NEOKEY_KEY_COUNT
+#define SS_NEOKEY_COUNT 5 * SS_NEOKEY_KEY_COUNT
 
 #define SS_ROTARY_ADDR 0x36
 #define SS_ROTARY_LED_PIN 6
@@ -124,11 +126,13 @@ private:
   int _alphaNumPathIndex;
 
   bool _neoKeyInit = false;
-  Adafruit_NeoKey_1x4 _neokeyArray[3] = {
+  Adafruit_NeoKey_1x4 _neokeyArray[5] = {
       Adafruit_NeoKey_1x4(SS_NEOKEY1_ADDR),
       Adafruit_NeoKey_1x4(SS_NEOKEY2_ADDR),
-      Adafruit_NeoKey_1x4(SS_NEOKEY3_ADDR)};
-  Adafruit_MultiNeoKey1x4 _neoKey = Adafruit_MultiNeoKey1x4((Adafruit_NeoKey_1x4 *)_neokeyArray, 3, 1);
+      Adafruit_NeoKey_1x4(SS_NEOKEY3_ADDR),
+      Adafruit_NeoKey_1x4(SS_NEOKEY4_ADDR),
+      Adafruit_NeoKey_1x4(SS_NEOKEY5_ADDR)};
+  Adafruit_MultiNeoKey1x4 _neoKey = Adafruit_MultiNeoKey1x4((Adafruit_NeoKey_1x4 *)_neokeyArray, 5, 1);
   int _neoKeyJustPressedIndex = -1;
   int _neoKeyJustReleasedIndex = -1;
   // light/blinky mode state
@@ -354,7 +358,7 @@ void MusicMatrixTaskHandler::updateMusicFreeplay()
     int note = _neoKeyJustPressedIndex % NOTE_COUNT;
     int octave = map(_neoSliderReading, 0, 1023, MIN_OCTAVE, MAX_OCTAVE);
     uint16_t freq = getNoteFrequency(note, octave);
-    uint32_t color = wheel(map(_neoKeyJustPressedIndex, 0, SS_NEOKEY_COUNT, 0, 255));
+    uint32_t color = wheel(map(note, 0, NOTE_COUNT, 0, 255));
     ack1Tone(freq);
 
     // alphanum note name
@@ -802,11 +806,11 @@ void MusicMatrixTaskHandler::playNote(uint8_t noteIndex, uint8_t octave, uint8_t
   if (frequency > 0)
   {
     // TODO: smaller increments than whole octave
-    uint32_t noteColor = wheel(map(noteIndex, 0, SS_NEOKEY_COUNT, 0, 255));
+    uint32_t noteColor = wheel(map(noteIndex, 0, NOTE_COUNT, 0, 255));
     uint32_t octaveColor = octave % 2 == 0 ? BLUE : RED; // at each index low octave is blue, high is red
 
     // show note on neokey
-    _neoKey.setPixelColor(noteIndex, noteColor);
+    _neoKey.setPixelColor(noteIndex, noteColor); // only use first 12 keys (for now?)
     _neoKey.show();
 
     // show octave on neoslider
