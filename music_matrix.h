@@ -356,7 +356,9 @@ void MusicMatrixTaskHandler::updateMusicFreeplay()
   {
     // ACK1 tone
     int note = _neoKeyJustPressedIndex % NOTE_COUNT;
-    int octave = map(_neoSliderReading, 0, 1023, MIN_OCTAVE, MAX_OCTAVE);
+    int noteOctave = _neoKeyJustPressedIndex / NOTE_COUNT;
+    int baseOctave = map(_neoSliderReading, 0, 1023, MIN_OCTAVE, MAX_OCTAVE);
+    int octave = baseOctave + noteOctave;
     uint16_t freq = getNoteFrequency(note, octave);
     uint32_t color = wheel(map(note, 0, NOTE_COUNT, 0, 255));
     ack1Tone(freq);
@@ -395,6 +397,7 @@ void MusicMatrixTaskHandler::updateMusicFreeplay()
   // turn off tone and light on release
   if (_neoKeyJustReleasedIndex >= 0)
   {
+    neoKeyClear(false);
     _neoKey.setPixelColor(_neoKeyJustReleasedIndex, 0x0);
     _neoKey.show();
 
