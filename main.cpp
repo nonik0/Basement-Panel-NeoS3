@@ -1,15 +1,13 @@
 #include <Arduino.h>
 
-//#include "matrix_8x16.h"
 #include "maze_runner_7x7.h"
 #include "music_matrix.h"
-#include "tunnel_runner_8x16.h"
+#include "tunnel_runner_8x32.h"
 #include "wifi_services.h"
 
-//Matrix8x16TaskHandler matrix8x16;
 MazeRunner7x7TaskHandler mazeRunner;
 MusicMatrixTaskHandler musicMatrix;
-TunnelRunner8x16TaskHandler tunnelRunner;
+TunnelRunner8x32TaskHandler tunnelRunner;
 WifiServices wifiServices;
 
 void setup()
@@ -20,24 +18,21 @@ void setup()
 
   wifiServices.setup(DEVICE_NAME);
 
-  mazeRunner.createTask();
-  //matrix8x16.createTask();
-  musicMatrix.createTask();
+  // frequent heap issue when tasks are created quickly, delays seem to help
   tunnelRunner.createTask();
+  delay(1000);
+  mazeRunner.createTask();
+  delay(1000);
+  musicMatrix.createTask();
+  delay(1000);
   wifiServices.createTask();
 
-  // wifiServices.registerSetDisplayCallback([](bool display)
-  //                                         { matrix8x16.setDisplay(display); });
   wifiServices.registerSetDisplayCallback([](bool display)
                                           { mazeRunner.setDisplay(display); });
   wifiServices.registerSetDisplayCallback([](bool display)
                                           { musicMatrix.setDisplay(display); });
   wifiServices.registerSetDisplayCallback([](bool display)
                                           { tunnelRunner.setDisplay(display); });
-
-  // wifiServices.registerSetMessageCallback("/8x16", [](const char *message)
-  //                                         { if (strlen(message) > 0)  matrix8x16.setMessage(message);
-  //                                           return matrix8x16.getMessage(); });
 
   log_i("Setup complete");
 }

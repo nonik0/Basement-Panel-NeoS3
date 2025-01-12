@@ -1076,7 +1076,7 @@ void MusicMatrixTaskHandler::ack1Wake()
   ack1Command(ACK1_LEDSCROLL_CMD, (uint8_t *)Ack1Message, strlen(Ack1Message));
 }
 
-void MusicMatrixTaskHandler::alphaNumSetup() 
+void MusicMatrixTaskHandler::alphaNumSetup()
 {
   if (_alphaNumInit)
   {
@@ -1149,7 +1149,7 @@ void MusicMatrixTaskHandler::alphaNumShiftIn(const char *str, size_t len)
 
   _alphaNum.writeDisplay();
 
-  log_i("AlphaNum buffer: %c%c%c%c", _alphaNumBuffer[0], _alphaNumBuffer[1], _alphaNumBuffer[2], _alphaNumBuffer[3]);
+  //log_i("AlphaNum buffer: %c%c%c%c", _alphaNumBuffer[0], _alphaNumBuffer[1], _alphaNumBuffer[2], _alphaNumBuffer[3]);
 }
 
 void MusicMatrixTaskHandler::neoKeySetup()
@@ -1315,7 +1315,7 @@ void MusicMatrixTaskHandler::neoSliderRead()
 
   uint16_t newReading = 1023 - _neoSliderSs.analogRead(SS_NEOSLIDER_SLD_PIN); // invert slider reading
 
-  if (newReading != _neoSliderReading && millis() - _neoSliderLastChangeMillis > 10)
+  if (abs(newReading - _neoSliderReading) > 1 && millis() - _neoSliderLastChangeMillis > 10)
   {
     log_d("NeoSlider reading: %d", newReading);
     _neoSliderLastReading = _neoSliderReading;
