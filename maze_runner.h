@@ -5,7 +5,7 @@
 #include "display_task_handler.h"
 #include "maze_runner_lib.h"
 
-class MazeRunner7x7TaskHandler : public DisplayTaskHandler
+class MazeRunnerTaskHandler : public DisplayTaskHandler
 {
 private:
     static const int TASK_PRIORITY = 5;
@@ -30,7 +30,7 @@ private:
     MazeRunner *_mazeRunner;
 
 public:
-    MazeRunner7x7TaskHandler() : _rgbLed(1, RGB_LED_PIN), _matrix(WIDTH * HEIGHT, RGB_LED_MATRIX_PIN) {}
+    MazeRunnerTaskHandler() : _rgbLed(1, RGB_LED_PIN), _matrix(WIDTH * HEIGHT, RGB_LED_MATRIX_PIN) {}
 
     bool createTask() override;
     void setDisplay(bool display) override;
@@ -39,7 +39,7 @@ private:
     void task(void *parameters) override;
 };
 
-bool MazeRunner7x7TaskHandler::createTask()
+bool MazeRunnerTaskHandler::createTask()
 {
     log_i("Starting MazeRunner7x7 setup");
 
@@ -85,7 +85,7 @@ bool MazeRunner7x7TaskHandler::createTask()
     return true;
 }
 
-void MazeRunner7x7TaskHandler::setDisplay(bool displayState)
+void MazeRunnerTaskHandler::setDisplay(bool displayState)
 {
     DisplayTaskHandler::setDisplay(displayState);
 
@@ -93,7 +93,7 @@ void MazeRunner7x7TaskHandler::setDisplay(bool displayState)
     digitalWrite(EN_PIN, displayState); // turns off LDO for 7x7 matrix
 }
 
-void MazeRunner7x7TaskHandler::task(void *parameters)
+void MazeRunnerTaskHandler::task(void *parameters)
 {
     while (1)
     {

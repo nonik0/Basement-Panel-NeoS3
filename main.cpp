@@ -1,13 +1,13 @@
 #include <Arduino.h>
 
-#include "maze_runner_7x7.h"
+#include "maze_runner.h"
 #include "music_matrix.h"
-#include "tunnel_runner_8x32.h"
+#include "tunnel_runner.h"
 #include "wifi_services.h"
 
-MazeRunner7x7TaskHandler mazeRunner;
+MazeRunnerTaskHandler mazeRunner;
 MusicMatrixTaskHandler musicMatrix;
-TunnelRunner8x32TaskHandler tunnelRunner;
+TunnelRunnerTaskHandler tunnelRunner;
 WifiServices wifiServices;
 
 void setup()
