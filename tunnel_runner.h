@@ -49,7 +49,7 @@ bool TunnelRunnerTaskHandler::createTask()
 
     _matrix1.setRotation(2);
     _matrix2.setRotation(2);
-    _matrix3.setRotation(0);
+    _matrix3.setRotation(2);
     _matrix1.setBrightness(5);
     _matrix2.setBrightness(5);
     _matrix3.setBrightness(5);

@@ -17,15 +17,15 @@ void setup()
   log_i("Starting setup...");
 
   wifiServices.setup(DEVICE_NAME);
+  wifiServices.createTask();
+  delay(3000);
 
   // frequent heap issue when tasks are created quickly, delays seem to help
-  tunnelRunner.createTask();
-  delay(1000);
   mazeRunner.createTask();
-  delay(1000);
+  delay(3000);
   musicMatrix.createTask();
-  delay(1000);
-  wifiServices.createTask();
+  delay(3000);
+  tunnelRunner.createTask();
 
   wifiServices.registerSetDisplayCallback([](bool display)
                                           { mazeRunner.setDisplay(display); });
