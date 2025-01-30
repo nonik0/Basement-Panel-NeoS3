@@ -56,10 +56,10 @@ bool MazeRunnerTaskHandler::createTask()
     digitalWrite(BLUE_LED_PIN, false);
 
     _matrix.begin();
-    _matrix.setBrightness(10);
+    _matrix.setBrightness(5);
 
     _rgbLed.begin();
-    _rgbLed.setBrightness(20);
+    _rgbLed.setBrightness(5);
     _rgbLed.setPixelColor(0, GREEN);
     _rgbLed.show();
 

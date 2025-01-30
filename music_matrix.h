@@ -1090,7 +1090,7 @@ void MusicMatrixTaskHandler::alphaNumSetup()
     return;
   }
 
-  _alphaNum.setBrightness(8);
+  _alphaNum.setBrightness(2);
 
   _alphaNum.writeDigitRaw(3, 0x0);
   _alphaNum.writeDigitRaw(0, 0xFFFF);
@@ -1360,7 +1360,7 @@ void MusicMatrixTaskHandler::rotarySetup()
     return;
   }
 
-  _rotaryNeoPixel.setBrightness(20);
+  _rotaryNeoPixel.setBrightness(5);
   _rotaryNeoPixel.show();
   _rotarySs.pinMode(SS_ROTARY_BTN_PIN, INPUT_PULLUP);
   _rotaryEncPos = _rotarySs.getEncoderPosition();
