@@ -113,6 +113,7 @@ private:
   volatile bool _isSongPlaying = false;
   volatile int _songIndex = -1;
   volatile unsigned long _songTaskWatchdogMillis;
+  bool _init = false;
 
   bool _ack1Init = false;
   bool _ack1Display = false;
@@ -242,6 +243,14 @@ bool MusicMatrixTaskHandler::createTask()
   delay(1000);
   ack1Setup(); // slow to initialize
 
+
+  _init = _ack1Init && _alphaNumInit && _neoKeyInit && _neoSliderInit && _rotaryInit;
+  if (!_init)
+  {
+    log_e("Not all components initialized, not creating task");
+    return false;
+  }
+
   log_i("Starting InputTask");
   xTaskCreatePinnedToCore(taskWrapper, "InputTask", 4096 * 4, this, TASK_PRIORITY, &_taskHandle, 1);
 
@@ -251,6 +260,11 @@ bool MusicMatrixTaskHandler::createTask()
 
 void MusicMatrixTaskHandler::setDisplay(bool displayState)
 {
+  if (!_init)
+  {
+    return;
+  }
+
   DisplayTaskHandler::setDisplay(displayState);
 
   if (displayState)
@@ -617,12 +631,6 @@ void MusicMatrixTaskHandler::updateBlinky()
 void MusicMatrixTaskHandler::changeMode(int desiredMode)
 {
   const int ModeChangeDelay = 150;
-
-  if (!_ack1Init || !_neoKeyInit || !_neoSliderInit || !_rotaryInit)
-  {
-    log_e("Not all components initialized");
-    return;
-  }
 
   // spin-down mode stuff
   if (_isSongPlaying)

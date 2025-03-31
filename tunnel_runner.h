@@ -25,6 +25,7 @@ public:
     TunnelRunnerTaskHandler() {}
 
     bool createTask() override;
+    void setDisplay(bool display) override;
 
 private:
     void task(void *parameters) override;
@@ -69,6 +70,12 @@ bool TunnelRunnerTaskHandler::createTask()
 
     log_i("TunnelRunner8x16 setup complete");
     return true;
+}
+
+void TunnelRunnerTaskHandler::setDisplay(bool displayState)
+{
+    log_i("Setting display to %s", displayState ? "on" : "off");
+    DisplayTaskHandler::setDisplay(displayState);
 }
 
 void TunnelRunnerTaskHandler::task(void *parameters)
