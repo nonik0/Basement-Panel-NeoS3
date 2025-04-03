@@ -243,7 +243,6 @@ bool MusicMatrixTaskHandler::createTask()
   delay(1000);
   ack1Setup(); // slow to initialize
 
-
   _init = _ack1Init && _alphaNumInit && _neoKeyInit && _neoSliderInit && _rotaryInit;
   if (!_init)
   {
@@ -1157,7 +1156,7 @@ void MusicMatrixTaskHandler::alphaNumShiftIn(const char *str, size_t len)
 
   _alphaNum.writeDisplay();
 
-  //log_i("AlphaNum buffer: %c%c%c%c", _alphaNumBuffer[0], _alphaNumBuffer[1], _alphaNumBuffer[2], _alphaNumBuffer[3]);
+  // log_i("AlphaNum buffer: %c%c%c%c", _alphaNumBuffer[0], _alphaNumBuffer[1], _alphaNumBuffer[2], _alphaNumBuffer[3]);
 }
 
 void MusicMatrixTaskHandler::neoKeySetup()
