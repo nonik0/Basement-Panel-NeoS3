@@ -13,11 +13,14 @@ private:
     const int CrashDelay = 30;
     const int ErrorDelay = 100;
     const int TunnelMinWidth = 3;
+    const int TunnelMaxWidthOffset = -2; // subtraces from dimension width
+    const int TunnelDifficultyCooldown = 100;
 
     // constant
     int _width;
     int _height;
     int _tunnelVisibleLength;
+    int _tunnelDimensionWidth;
     int _tunnelMaxWidth;
     Direction _tunnelDirection;
     bool _tunnelIsVertical;
@@ -27,6 +30,7 @@ private:
     int _tunnelWidth;
     int _tunnelCooldown;
     bool _tunnelShrinking;
+    int _tunnelDifficultyCooldown;
 
     Location _runnerLocation;
     int _runnerCooldown;
@@ -71,7 +75,8 @@ TunnelRunner::TunnelRunner(
     _height = height;
     _tunnelDirection = tunnelDirection;
     _tunnelIsVertical = tunnelDirection.x == 0;
-    _tunnelMaxWidth = _tunnelIsVertical ? _width : _height;
+    _tunnelDimensionWidth = _tunnelIsVertical ? _width : _height;
+    _tunnelMaxWidth = _tunnelDimensionWidth + TunnelMaxWidthOffset;
     _tunnelVisibleLength = _tunnelIsVertical ? _height : _width;
     _pathColor = pathColor;
     _wallColor = wallColor;
@@ -88,6 +93,7 @@ TunnelRunner::TunnelRunner(
     log_d("height: %d", _height);
     log_d("tunnelDirection: %d,%d", _tunnelDirection.x, _tunnelDirection.y);
     log_d("tunnelIsVertical: %d", _tunnelIsVertical);
+    log_d("tunnelDimensionWidth: %d", _tunnelDimensionWidth);
     log_d("tunnelMaxWidth: %d", _tunnelMaxWidth);
     log_d("tunnelVisibleLength: %d", _tunnelVisibleLength);
 }
@@ -99,6 +105,7 @@ void TunnelRunner::init()
     _resetDelay = -1;
     _runnerCooldown = 0;
     _tunnelCooldown = 0;
+    _tunnelDifficultyCooldown = 0;
     _tunnelShrinking = true;
 
     // fill tunnel with walls (true)
@@ -110,7 +117,7 @@ void TunnelRunner::init()
         }
     }
 
-    _tunnelWidth = _tunnelMaxWidth - 2;
+    _tunnelWidth = _tunnelMaxWidth;
 
     if (_tunnelDirection == Left)
     {
@@ -160,37 +167,37 @@ bool TunnelRunner::update()
 {
     try
     {
-    if (_resetDelay > 0)
-    {
-        _resetDelay--;
-        if (_resetDelay <= 0)
+        if (_resetDelay > 0)
         {
-            init();
+            _resetDelay--;
+            if (_resetDelay <= 0)
+            {
+                init();
+                drawTunnel();
+                return true;
+            }
+            return false;
+        }
+
+        bool update = false;
+
+        update |= moveRunner();
+        update |= advanceTunnel();
+
+        if (isWall(_runnerLocation))
+        {
+            log_d("Runner crashed");
             drawTunnel();
+            _resetDelay = CrashDelay;
             return true;
         }
-        return false;
-    }
 
-    bool update = false;
+        if (update)
+        {
+            drawTunnel();
+        }
 
-    update |= moveRunner();
-    update |= advanceTunnel();
-
-    if (isWall(_runnerLocation))
-    {
-        log_d("Runner crashed");
-        drawTunnel();
-        _resetDelay = CrashDelay;
-        return true;
-    }
-
-    if (update)
-    {
-        drawTunnel();
-    }
-
-    return update;
+        return update;
     }
     catch (const std::exception &e)
     {
@@ -204,9 +211,8 @@ bool TunnelRunner::update()
 
 bool TunnelRunner::advanceTunnel()
 {
-    if (_tunnelCooldown > 0)
+    if (_tunnelCooldown-- > 0)
     {
-        _tunnelCooldown--;
         return false;
     }
     _tunnelCooldown = TunnelSpeed;
@@ -237,7 +243,7 @@ bool TunnelRunner::advanceTunnel()
     // move all walls in direction of tunnel
     for (Location curLoc = startLoc; curLoc != endLoc; curLoc -= _tunnelDirection)
     {
-        for (int j = 0; j < _tunnelMaxWidth; j++)
+        for (int j = 0; j < _tunnelDimensionWidth; j++)
         {
             // copy wall from opposite direction of tunnel movement
             if (_tunnelIsVertical)
@@ -251,11 +257,12 @@ bool TunnelRunner::advanceTunnel()
         }
     }
 
-    // randomly change tunnel width
-    if (random() % 600 == 0)
+    if (_tunnelDifficultyCooldown-- < 0)
     {
+        _tunnelDifficultyCooldown = TunnelDifficultyCooldown;
+
         _tunnelWidth += _tunnelShrinking ? -1 : 1;
-       log_d("Changed tunnel width to " + String(_tunnelWidth));
+        log_d("Changed tunnel width to %d", _tunnelWidth);
 
         if (_tunnelWidth < TunnelMinWidth)
         {
@@ -270,12 +277,26 @@ bool TunnelRunner::advanceTunnel()
             log_d("Tunnel now shrinking");
         }
 
-        // when tunnel shrinks decide which direction it shifts randomly
-        if (random() % 2 == 0)
+        // Randomly shift tunnel direction when shrinking
+        if (_tunnelShrinking)
         {
-            _tunnelLocation = _tunnelIsVertical
-                                  ? _tunnelLocation + Right
-                                  : _tunnelLocation + Down;
+            // shrinking width is implicit shift left or up
+            _tunnelLocation += _tunnelIsVertical ? (random() % 2) * Right : (random() % 2) * Down;
+        }
+        else
+        {
+            // expanding width is implicit shift right or down
+            _tunnelLocation += _tunnelIsVertical ? (random() % 2) * Left : (random() % 2) * Up;
+        }
+
+        // ensure tunnel doesn't shift OoB
+        if (_tunnelIsVertical)
+        {
+            _tunnelLocation.x = constrain(_tunnelLocation.x, 0, _width - _tunnelWidth);
+        }
+        else
+        {
+            _tunnelLocation.y = constrain(_tunnelLocation.y, 0, _height - _tunnelWidth);
         }
     }
     // randomly change tunnel location (shift center of tunnel)
@@ -312,7 +333,7 @@ bool TunnelRunner::advanceTunnel()
     }
 
     // now generate new walls for tunnel at far end
-    for (int i = 0; i < _tunnelMaxWidth; i++)
+    for (int i = 0; i < _tunnelDimensionWidth; i++)
     {
         if (_tunnelIsVertical)
         {
@@ -348,7 +369,7 @@ bool TunnelRunner::moveRunner()
     {
         Location lookAheadLoc = _runnerLocation - (i + 1) * _tunnelDirection;
 
-        for (int j = 0; j < _tunnelMaxWidth; j++)
+        for (int j = 0; j < _tunnelDimensionWidth; j++)
         {
             if (_tunnelIsVertical)
             {
