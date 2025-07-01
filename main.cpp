@@ -34,6 +34,10 @@ void setup()
   wifiServices.registerSetDisplayCallback([](bool display)
                                           { tunnelRunner.setDisplay(display); });
 
+  wifiServices.registerSetMessageCallback("/ack1", [](const char *message)
+                                          { if (strlen(message) > 0)  musicMatrix.setMessage(message);
+                                            return musicMatrix.getMessage(); });
+
   log_i("Setup complete");
 }
 

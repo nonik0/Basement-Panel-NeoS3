@@ -169,7 +169,8 @@ public:
   MusicMatrixTaskHandler() {}
 
   bool createTask() override;
-  void setDisplay(bool display);
+  void setDisplay(bool display) override;
+  void setMessage(const char *message) override;
 
 private:
   void task(void *parameters) override;
@@ -278,6 +279,14 @@ void MusicMatrixTaskHandler::setDisplay(bool displayState)
     neoSliderClear();
     rotaryClear();
   }
+}
+
+void MusicMatrixTaskHandler::setMessage(const char *message)
+{
+  DisplayTaskHandler::setMessage(message);
+  ack1Command(ACK1_LEDSCROLL_CMD, (uint8_t *)_message, strlen(_message));
+  log_d("ACK1 status: %d", ack1Command(ACK1_STATUS_CMD));
+  _ack1Display = true;
 }
 
 void MusicMatrixTaskHandler::task(void *parameters)
@@ -932,9 +941,7 @@ void MusicMatrixTaskHandler::ack1Setup()
     return;
   }
 
-  ack1Command(ACK1_LEDSCROLL_CMD, (uint8_t *)Ack1BootMessage, strlen(Ack1BootMessage));
-  log_d("ACK1 status: %d", ack1Command(ACK1_STATUS_CMD));
-  _ack1Display = true;
+  setMessage(Ack1BootMessage);
 }
 
 bool MusicMatrixTaskHandler::ack1Command(uint8_t cmd, const uint8_t *data, size_t len)
@@ -1080,7 +1087,7 @@ void MusicMatrixTaskHandler::ack1Tone(uint16_t freq)
 
 void MusicMatrixTaskHandler::ack1Wake()
 {
-  ack1Command(ACK1_LEDSCROLL_CMD, (uint8_t *)Ack1Message, strlen(Ack1Message));
+  ack1Command(ACK1_LEDSCROLL_CMD, (uint8_t *)_message, strlen(_message));
 }
 
 void MusicMatrixTaskHandler::alphaNumSetup()
