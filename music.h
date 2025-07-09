@@ -73,7 +73,6 @@ const uint16_t BigBen[] PROGMEM = {
     N(Gn, 5, 32), N(Gn, 5, 32), N(Gn, 5, 32), N(Gn, 5, 32),
     PAUSE(32),
     END};
-
 const uint16_t JollyGoodFellow[] PROGMEM = {
     N(Dn, 7, 8),
     N(Bn, 6, 16), N(Bn, 6, 8), N(Bn, 6, 8), N(An, 6, 8), N(Bn, 6, 8),
@@ -127,6 +126,26 @@ const uint16_t MerryXmas[] PROGMEM = {
     N(En, 6, 16), N(An, 6, 16), N(Fs, 6, 16),
     N(Gn, 6, 32), PAUSE(16),
     END};
+const uint16_t PinkPanther[] PROGMEM = {
+    PAUSE(16), PAUSE(4), PAUSE(8), N(Dn, 4, 4),
+    N(En, 4, 12), PAUSE(4), N(Fs, 4, 4), N(Gn, 4, 12), PAUSE(4), N(Ds, 4, 4),
+    N(En, 4, 6), N(Fs, 4, 4), N(Gn, 4, 6), N(Cn, 5, 4), N(Bn, 4, 6), N(En, 4, 4), N(Gn, 4, 6), N(Bn, 4, 4),
+    N(As, 4, 16), N(An, 4, 3), N(Gn, 4, 3), N(En, 4, 3), N(Dn, 4, 3),
+    N(En, 4, 16), PAUSE(8), PAUSE(4), N(Dn, 4, 8),
+
+    N(En, 4, 4), PAUSE(4), N(Fs, 4, 4), N(Gn, 4, 12), PAUSE(4), N(Ds, 4, 4),
+    N(En, 4, 6), N(Fs, 4, 4), N(Gn, 4, 6), N(Cn, 5, 4), N(Bn, 4, 6), N(Gn, 4, 4), N(Bn, 4, 6), N(En, 5, 4),
+    N(Ds, 5, 32),
+    N(Dn, 5, 16), PAUSE(8), PAUSE(4), N(Ds, 4, 4),
+    N(En, 4, 12), PAUSE(4), N(Fs, 4, 4), N(Gn, 4, 12), PAUSE(4), N(Ds, 4, 4),
+    N(En, 4, 6), N(Fs, 4, 4), N(Gn, 4, 6), N(Cn, 5, 4), N(Bn, 4, 6), N(En, 4, 4), N(Gn, 4, 6), N(Bn, 4, 4),
+  
+    N(As, 4, 16), N(An, 4, 3), N(Gn, 4, 3), N(En, 4, 3), N(Dn, 4, 3),
+    N(En, 4, 12), PAUSE(8),
+    PAUSE(8), N(En, 5, 6), N(Dn, 5, 4), N(Bn, 4, 6), N(An, 4, 4), N(Gn, 4, 6), N(En, 4, 6),
+    N(As, 4, 2), N(An, 4, 6), N(As, 4, 2), N(An, 4, 6), N(As, 4, 2), N(An, 4, 6), N(As, 4, 2), N(An, 4, 6),
+    N(As, 4, 3), N(En, 4, 3), N(Dn, 4, 3), N(En, 4, 2), N(En, 4, 2), N(En, 4, 2),
+    END};
 const uint16_t Reveille[] PROGMEM = {
     N(Gn, 6, 4),
     N(Cn, 7, 8), N(En, 7, 4), N(Cn, 7, 4), N(Gn, 6, 8), N(En, 7, 8),
@@ -146,7 +165,7 @@ const uint16_t Reveille[] PROGMEM = {
     N(Gn, 7, 16), N(En, 7, 8), N(Cn, 7, 8),
     N(En, 7, 8), N(Cn, 7, 8), N(Gn, 6, 8), N(Gn, 6, 8),
     N(Cn, 7, 24), PAUSE(8),
-    0};
+    END};
 const uint16_t SongOfStorms[] PROGMEM = {
     N(Dn, 4, 8), N(An, 4, 8), N(An, 4, 8),
     PAUSE(4), N(En, 4, 4), N(Bn, 4, 16),
@@ -173,6 +192,25 @@ const uint16_t SongOfStorms[] PROGMEM = {
     N(An, 4, 8), N(Dn, 4, 8), N(Fn, 4, 4), N(Gn, 4, 4),
     N(An, 4, 16), N(An, 4, 8),
     N(Dn, 4, 32),
+    END};
+const uint16_t StarWarsCantina[] PROGMEM = { 
+    N(Bn, 4, 12), N(En, 5, 12), N(Bn, 4, 12), N(En, 5, 12),
+    N(Bn, 4, 4), N(En, 5, 12), N(Bn, 4, 4), PAUSE(4), N(As, 4, 4), N(Bn, 4, 4),
+    N(Bn, 4, 4), N(As, 4, 4), N(Bn, 4, 4), N(An, 4, 4), PAUSE(4), N(Gs, 4, 4), N(An, 4, 4), N(Gn, 4, 4),
+    N(Gn, 4, 8), N(En, 4, 24),
+    N(Bn, 4, 12), N(En, 5, 12), N(Bn, 4, 12), N(En, 5, 12),
+    N(Bn, 4, 4), N(En, 5, 12), N(Bn, 4, 4), PAUSE(4), N(As, 4, 4), N(Bn, 4, 4),
+
+    N(An, 4, 12), N(An, 4, 12), N(Gs, 4, 4), N(An, 4, 12),
+    N(Dn, 5, 4), N(Cn, 5, 12), N(Bn, 4, 12), N(An, 4, 12),
+    N(Bn, 4, 12), N(En, 5, 12), N(Bn, 4, 12), N(En, 5, 12),
+    N(Bn, 4, 4), N(En, 5, 12), N(Bn, 4, 4), PAUSE(4), N(As, 4, 4), N(Bn, 4, 4),
+    N(Dn, 5, 8), N(Dn, 5, 12), N(Bn, 4, 4), N(An, 4, 12),
+    N(Gn, 4, 12), N(En, 4, 24),
+    N(En, 4, 16), N(Gn, 4, 16),
+    N(Bn, 4, 16), N(Dn, 5, 16),
+
+    N(Fn, 5, 12), N(En, 5, 12), N(As, 4, 4), N(As, 4, 4), N(Bn, 4, 4), N(Gn, 4, 8 ),
     END};
 const uint16_t SuperMario[] PROGMEM = {
     N(En, 5, 4), N(En, 5, 4), PAUSE(4), N(En, 5, 4), PAUSE(4), N(Cn, 5, 4), N(En, 5, 4), // 1
@@ -355,14 +393,17 @@ const uint16_t(*Songs[]) PROGMEM = {
     JollyGoodFellow,
     BigBen,
 
+    StarWarsCantina,
+    SongOfStorms,
+    PinkPanther,
+    Reveille,
+    
+    TwinkleTwinkle,
+    Tetris,
     Terminator2,
     SuperMario,
-    SongOfStorms,
-    Reveille,
 
     Zelda,
-    TwinkleTwinkle,
-    Tetris
 };
 const size_t SongCount = sizeof(Songs) / sizeof(Songs[0]);
 const char* SongName4Chars[] = {
@@ -371,12 +412,15 @@ const char* SongName4Chars[] = {
     "JOLY",
     "BEN ",
 
+    "SWRS",
+    "STRM",
+    "PINK",
+    "REVE",
+    
+    "TWNK",
+    "TETR",
     "T-2 ",
     "MRIO",
-    "STRM",
-    "REVE",
 
     "ZLDA",
-    "STAR",
-    "TETR"
 };

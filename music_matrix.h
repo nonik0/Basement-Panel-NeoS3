@@ -849,7 +849,6 @@ void MusicMatrixTaskHandler::playNote(uint8_t noteIndex, uint8_t octave, uint8_t
     // show note on alphanum
     const char *noteName = Notes[noteIndex];
     alphaNumShiftIn(noteName);
-    alphaNumShiftIn(std::to_string(_octaveAdjust).c_str());
   }
   else
   {
