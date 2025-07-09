@@ -62,9 +62,9 @@ const int AlphaNumLoopPathLength = sizeof(AlphaNumLoopPath) / sizeof(AlphaNumLoo
 
 const tuple<uint8_t, uint16_t> AlphaNumFigure8Path[] = {
     {0, ALPHANUM_SEG_A}, {1, ALPHANUM_SEG_H}, {1, ALPHANUM_SEG_N}, {2, ALPHANUM_SEG_D}, {3, ALPHANUM_SEG_D}, {3, ALPHANUM_SEG_C}, {3, ALPHANUM_SEG_B}, {3, ALPHANUM_SEG_A}, {2, ALPHANUM_SEG_K}, {2, ALPHANUM_SEG_L}, {1, ALPHANUM_SEG_D}, {0, ALPHANUM_SEG_D}, {0, ALPHANUM_SEG_E}, {0, ALPHANUM_SEG_F}};
-const int AlphaNumFigure8PathLength = sizeof(AlphaNumFigure8Path) / sizeof(AlphaNumFigure8Path[0]);
-
-const tuple<uint8_t, uint16_t> AlphaNumWavyPath[] = {
+    const int AlphaNumFigure8PathLength = sizeof(AlphaNumFigure8Path) / sizeof(AlphaNumFigure8Path[0]);
+    
+    const tuple<uint8_t, uint16_t> AlphaNumWavyPath[] = {
     {0, ALPHANUM_SEG_A}, {1, ALPHANUM_SEG_H}, {1, ALPHANUM_SEG_N}, {2, ALPHANUM_SEG_L}, {2, ALPHANUM_SEG_K}, {3, ALPHANUM_SEG_A}, {3, ALPHANUM_SEG_B}, {3, ALPHANUM_SEG_C}, {3, ALPHANUM_SEG_D}, {2, ALPHANUM_SEG_N}, {2, ALPHANUM_SEG_H}, {1, ALPHANUM_SEG_K}, {1, ALPHANUM_SEG_L}, {0, ALPHANUM_SEG_D}, {0, ALPHANUM_SEG_E}, {0, ALPHANUM_SEG_F}};
 const int AlphaNumWavyPathLength = sizeof(AlphaNumWavyPath) / sizeof(AlphaNumWavyPath[0]);
 
@@ -88,7 +88,8 @@ class MusicMatrixTaskHandler : public DisplayTaskHandler
 private:
   static const int SONG_TASK_PRIORITY = 10;
   static const int TASK_PRIORITY = 6;
-
+  static const int NEOSLIDER_DEBOUNCE_CYCLES = 3;
+  
   enum Mode
   {
     Music,
@@ -105,8 +106,10 @@ private:
 
   TaskHandle_t _songTask = NULL;
   int _octaveAdjust;
+  int _octaveAdjustPending = 0;
+  int _octaveAdjustDebounceCycles = 0;
   int _timingUnitMs;
-
+  
   Mode _mode = Mode::Music;
   unsigned long _lastInput = 0;
   const int InputTimeout = 60 * 1000;
@@ -125,7 +128,7 @@ private:
   int _alphaNumBlinkyDelay;
   int _alphaNumBlinkyIndex;
   int _alphaNumPathIndex;
-
+  
   bool _neoKeyInit = false;
   Adafruit_NeoKey_1x4 _neokeyArray[5] = {
       Adafruit_NeoKey_1x4(SS_NEOKEY1_ADDR),
@@ -150,7 +153,7 @@ private:
   // light/blinky mode state
   bool _neoSliderPixelState[SS_NEOSLIDER_LED_COUNT];
   int _neoSliderBlinkyDelay[SS_NEOSLIDER_LED_COUNT];
-
+  
   bool _rotaryInit = false;
   Adafruit_seesaw _rotarySs;
   seesaw_NeoPixel _rotaryNeoPixel = seesaw_NeoPixel(SS_ROTARY_LED_COUNT, SS_ROTARY_LED_PIN, NEO_GRB + NEO_KHZ800);
@@ -434,7 +437,7 @@ void MusicMatrixTaskHandler::updateMusicPlay()
   if (_rotaryJustRotated)
   {
     int msIncrement = _rotaryEncPos < _rotaryLastEncPos ? TimingUnitStepMs : -TimingUnitStepMs;
-    int newTimingUnitMs = constrain(_timingUnitMs + msIncrement, TimingUnitMinMs, TimingUnitMaxMs);
+    int newTimingUnitMs = constrain(_timingUnitMs - msIncrement, TimingUnitMinMs, TimingUnitMaxMs);
 
     if (newTimingUnitMs != _timingUnitMs)
     {
@@ -458,18 +461,25 @@ void MusicMatrixTaskHandler::updateMusicPlay()
   if (_neoSliderJustChanged)
   {
     int newOctaveAdjust = map(_neoSliderReading, 0, 1023, -2, 2);
-
-    if (newOctaveAdjust != _octaveAdjust)
+    if (newOctaveAdjust == _octaveAdjustPending)
     {
-      _octaveAdjust = newOctaveAdjust;
-      log_i("Octave adjust updated: %d", _octaveAdjust);
-
-      if (!_isSongPlaying)
+      if (++_octaveAdjustDebounceCycles >= NEOSLIDER_DEBOUNCE_CYCLES && newOctaveAdjust != _octaveAdjust)
       {
-        char timingUnitStr[5];
-        snprintf(timingUnitStr, 5, "%4d", _octaveAdjust);
-        alphaNumShiftIn(timingUnitStr);
+        _octaveAdjust = newOctaveAdjust;
+        log_i("Octave adjust updated: %d", _octaveAdjust);
+
+        if (!_isSongPlaying)
+        {
+          char octaveAdjustStr[5];
+          snprintf(octaveAdjustStr, 5, "%4d", _octaveAdjust);
+          alphaNumShiftIn(octaveAdjustStr);
+        }
       }
+    }
+    else
+    {
+      _octaveAdjustPending = newOctaveAdjust;
+      _octaveAdjustDebounceCycles = 0;
     }
   }
 
@@ -839,6 +849,7 @@ void MusicMatrixTaskHandler::playNote(uint8_t noteIndex, uint8_t octave, uint8_t
     // show note on alphanum
     const char *noteName = Notes[noteIndex];
     alphaNumShiftIn(noteName);
+    alphaNumShiftIn(std::to_string(_octaveAdjust).c_str());
   }
   else
   {
