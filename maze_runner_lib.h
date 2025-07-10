@@ -20,7 +20,7 @@ private:
   const uint8_t SentrySpeed = 5;
   const int GoalDelay = 10; // delay cycles before generating new maze
   const int CatchDelay = 30;
-  const int ErrorDelay = 2 ^ 16;
+  const int ErrorDelay = 65536;
 
   int _width;
   int _height;

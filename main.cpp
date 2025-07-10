@@ -1,5 +1,5 @@
 #include <Arduino.h>
-
+#define byte uint8_t
 #include "maze_runner.h"
 #include "music_matrix.h"
 #include "tunnel_runner.h"

@@ -415,7 +415,8 @@ void MusicMatrixTaskHandler::updateMusicFreeplay()
 
     if (lastOctave != octave)
     {
-      alphaNumShiftIn(std::to_string(octave).c_str());
+      char octave = '0' + (octave % 10);
+      alphaNumShiftIn(&octave);
     }
   }
 
@@ -449,12 +450,9 @@ void MusicMatrixTaskHandler::updateMusicPlay()
       _rotaryNeoPixel.setPixelColor(0, color);
       _rotaryNeoPixel.show();
 
-      if (!_isSongPlaying)
-      {
-        char timingUnitStr[5];
-        snprintf(timingUnitStr, 5, "%4d", _timingUnitMs);
-        alphaNumShiftIn(timingUnitStr);
-      }
+      char timingUnitStr[5];
+      snprintf(timingUnitStr, 5, "%4d", _timingUnitMs);
+      alphaNumShiftIn(timingUnitStr);
     }
   }
 
@@ -790,6 +788,7 @@ void MusicMatrixTaskHandler::playSongTask(void *parameters)
 
     const uint16_t *song = Songs[_songIndex];
     const char *songName = SongName4Chars[_songIndex];
+    _timingUnitMs = SongDefaultTimingUnitMs[_songIndex];
 
     log_i("Playing song %s", songName);
     alphaNumClear();

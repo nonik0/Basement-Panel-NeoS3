@@ -424,3 +424,21 @@ const char* SongName4Chars[] = {
 
     "ZLDA",
 };
+const uint8_t SongDefaultTimingUnitMs[] = {
+    30,
+    30,
+    30,
+    40,
+
+    25,
+    40,
+    50,
+    40,
+    
+    40,
+    60,
+    30,
+    35,
+
+    45,
+};
