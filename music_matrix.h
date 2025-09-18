@@ -119,7 +119,6 @@ private:
   bool _init = false;
 
   bool _ack1Init = false;
-  bool _ack1Display = false;
 
   bool _alphaNumInit = false;
   Adafruit_AlphaNum4 _alphaNum = Adafruit_AlphaNum4();
@@ -287,9 +286,11 @@ void MusicMatrixTaskHandler::setDisplay(bool displayState)
 void MusicMatrixTaskHandler::setMessage(const char *message)
 {
   DisplayTaskHandler::setMessage(message);
-  ack1Command(ACK1_LEDSCROLL_CMD, (uint8_t *)_message, strlen(_message));
+  if (_init && _display) 
+  {
+    ack1Command(ACK1_LEDSCROLL_CMD, (uint8_t *)_message, strlen(_message));
+  }
   log_d("ACK1 status: %d", ack1Command(ACK1_STATUS_CMD));
-  _ack1Display = true;
 }
 
 void MusicMatrixTaskHandler::task(void *parameters)
@@ -971,14 +972,12 @@ bool MusicMatrixTaskHandler::ack1Command(uint8_t cmd, const uint8_t *data, size_
   case ACK1_LEDCLR_CMD:
     log_d("Sending LEDCLR command");
     Wire.write(ACK1_LEDCLR_CMD);
-    _ack1Display = false;
     break;
   case ACK1_LEDSCROLL_CMD:
     log_d("Sending LEDSCROLL command");
     Wire.write(ACK1_LEDSCROLL_CMD);
     Wire.write(static_cast<uint8_t>(len));
     Wire.write(data, len);
-    _ack1Display = true;
     break;
   case ACK1_TONEON_CMD:
     log_d("Sending TONEON command");
